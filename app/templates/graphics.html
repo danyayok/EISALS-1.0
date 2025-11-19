@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% from "_comment_macro.html" import render_comment %}
+
+{% block title %} Графики - EISALS {% endblock %}
+
+{% block content %}
+
+<div class="graphs_wrapper">
+    <aside class="tags_aside">
+        <div>
+            <p>Область:</p>
+            <select id="region" name="oblast">
+                <option value="">Все области</option>
+                {% for region in filters.regions %}
+                <option value="{{ region.id }}">{{ region.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <p>Цена:</p>
+            <input type="range" id="priceRange" 
+                   min="{{ filters.price_range.min }}" 
+                   max="{{ filters.price_range.max }}" 
+                   step="{{ filters.price_range.step }}"
+                   value="0">
+            <div class="price-labels">
+                <span id="currentPrice">0</span>
+                <span>100000</span>
+            </div>
+        </div>
+
+        <div>
+            <p>Тема:</p>
+            <div class="themes-list">
+                {% for theme in filters.themes %}
+                <label class="theme-option">
+                    <input type="radio" name="theme" value="{{ theme.id }}">
+                    {{ theme.name }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div>
+            <p>Закон:</p>
+            <div class="laws-list">
+                {% for law in filters.laws %}
+                <label class="law-option">
+                    <input type="radio" name="law" value="{{ law.id }}">
+                    {{ law.name }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <button onclick="applyFilters()" class="apply-filters-btn">Применить фильтры</button>
+    </aside>
+
+    <section class="posts_area">
+        {% if posts %}
+            {% for post in posts[:10] %}
+                <div class="commnposts">
+                    <div class="post">
+                        <div class="post_left">
+                            <div class="img_n_name">
+                                <img src="{{ url_for('static', filename='users/graphs/' ~ post['img_path']) }}" alt="График" class="post_image">
+                                <p class="file_name">{{ post['short_img_path'] }}</p>
+                            </div>
+                            <div class="download_block">
+                                <button class="download_btn">Скачать</button>
+                                <div class="download_type">IMG ⏷</div>
+                            </div>
+                        </div>
+
+                        <div class="post_right">
+                            <div class="post_header">
+                                <h2 class="post_title">{{ post['title'] }}</h2>
+                                <div class="post_rating" data-post-id="{{ post['id'] }}">
+                                    <img class="arrow up" src="{{ url_for('static', filename='images/arrow_empty.png') }}" alt="up" data-post-id="{{ post['id'] }}">
+                                    <span class="rating_value">{{ post['rating'] }}</span>
+                                    <img class="arrow down" src="{{ url_for('static', filename='images/arrow_empty.png') }}" alt="down" data-post-id="{{ post['id'] }}">
+                                </div>
+                            </div>
+
+                            <p class="post_desc">
+                                {{ post['desc'] }}
+                            </p>
+
+                            <div class="post_actions">
+                                <div class="author_info">
+                                    <span>{{ users[post.author].name if post.author in users else "Неизвестен" }}</span>
+                                </div>
+                                {% if post.author == USER_ID %}
+                                    <button id='delete_post' hidden></button>
+                                    <img for='delete_post' class="delete_post_btn" data-post-id="{{ post['id'] }}" src="{{ url_for('static', filename='images/trashbin.png') }}" alt="delete">
+                                {% endif %}
+                                <button class="reply_post_btn" data-post-id="{{ post['id'] }}">Ответить</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="commentFormContainer-{{ post['id'] }}" class="hidden comment-form-container">
+                        <div class="comment-form">
+                            <textarea placeholder="Введите ваш комментарий..." class="comment-textarea" data-post-id="{{ post['id'] }}"></textarea>
+                            <button type="button" class="send-comment-btn" data-post-id="{{ post['id'] }}">Опубликовать</button>
+                        </div>
+                    </div>
+                    
+                    {% if post["comms"] %}
+                        <div class="post_comms">
+                            {% for comm in post["comms"] %}
+                                {{ render_comment(comm, post, users, USER_ID) }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>  
+            {% endfor %}
+        {% else %}
+            <div class="no-posts">
+                <p>Нет постов для отображения</p>
+            </div>
+        {% endif %}
+    </section>
+    <div id="loader" class="loader" style="display:none;">Загрузка...</div>
+</div>
+
+<script>
+    document.getElementById('priceRange').addEventListener('input', function(e) {
+        document.getElementById('currentPrice').textContent = e.target.value;
+    });
+
+    function applyFilters() {
+        const region = document.getElementById('region').value;
+        const price = document.getElementById('priceRange').value;
+        const theme = document.querySelector('input[name="theme"]:checked')?.value;
+        const law = document.querySelector('input[name="law"]:checked')?.value;
+
+        console.log('Фильтры:', { region, price, theme, law });
+        // над добавить фильтры
+    }
+    // когда доходишь до блока триггера делаем запрос на посты
+     class PostLoader {
+      constructor() {
+        this.cache = new Map();
+        this.controller = null; // для отмены запросов
+      }
+
+      async fetchPosts(page, limit = 3) {
+        if (this.controller) {
+          this.controller.abort();
+        }
+
+        this.controller = new AbortController();
+
+        try {
+          const cacheKey = `page-${page}`;
+
+          if (this.cache.has(cacheKey)) {
+            return this.cache.get(cacheKey);
+          }
+
+          const response = await fetch(
+            `/api/posts?page=${page}&limit=${limit}&_=${Date.now()}`,
+            {
+              signal: this.controller.signal,
+              headers: {
+                'Accept': 'application/json',
+              }
+            }
+          );
+
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+          const posts = await response.json();
+          this.cache.set(cacheKey, posts);
+
+          return posts;
+
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            console.error('Fetch error:', error);
+            throw error;
+          }
+        }
+      }
+    }
+
+
+
+</script>
+
+{% endblock %}

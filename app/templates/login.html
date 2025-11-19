@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %} Вход - EISALS {% endblock %}
+
+{% block content %}
+<div class="login_wrapper">
+    <form class="post-form-log" method="POST" action="/api/login"> 
+        <p class="log_title"> Вход в EISALS </p>
+        <div class="log_form">
+            <p> Почта: </p>
+            <input class="text_input" type="email" name="email" placeholder="Почта" required>
+            <p> Пароль: </p>
+            <input class="text_input" type="password" name="password" placeholder="Пароль" required>
+            <div class="keep_logged_box">
+                <input type="checkbox" id="keep_logged" name="keep_logged" class="custom-checkbox">
+                <label for="keep_logged">Запомнить меня</label>
+            </div>
+            
+        </div>
+        <a href="/recover_pass"> Не могу войти </a>
+        <button class="log_button" type="submit">Войти</button>
+        <p>Нету аккаунта? <a href="/register">Зарегистрироваться</a> </p>
+    </form>
+</div>
+
+<script>
+document.getElementById("avatarka").addEventListener("change", function (event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById("ava-log").src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,578 @@
+{% extends "base.html" %}
+{% from "_comment_macro.html" import render_comment %}
+
+{% block title %} Кабинет - EISALS {% endblock %}
+
+{% block content %}
+<div class="cab_wrap">
+    <section class="ava_stat">
+        <img class="ava" id="ava" src="{{ url_for('static', filename='users/avas/' ~ ava_path) }}">
+        <div class="cab_text">
+            <div class="cab_username"><p style="margin: 0; font-size: 128px; align-self: center;"> {{ name }}</p></div>
+            <div class="cab_stat">
+                <p> Дата создания: {{ created_at }}</p>
+                <p> Кол-во постов: {{ posts_len }}</p>
+                <p> Кол-во комментариев: {{ comments_len }} </p>
+                <p> Рейтинг: {{ rating }} </p>
+            </div>
+        </div>
+    </section>
+    <div class="cab_buttons">
+        <div class="cab_button_ava">
+            <input type="file" id="avaInput" name="fileInput" accept="image/*" hidden>
+            <button type="button" id="avaButton">Изменить фото</button>
+        </div>
+
+        <div class="cab_button_new_post">
+            <button id="togglePostForm">Запостить график</button>
+        </div>
+    </div>
+    <div class="adiposts">
+        <aside class="bigaf_filler">
+            <img class="filler_pic" src="{{ url_for('static', filename='images/filler.jpg') }}">
+        </aside>
+        <main class="posts_area">
+            <div id="postFormContainer" class="hidden">
+                <form class="post-form" method="POST" action="{{ url_for('add_post_route') }}" enctype="multipart/form-data"> 
+                    <div class="form_left">
+                        <div class="form_picture">
+                            <img id="preview" src="{{ url_for('static', filename='images/graph.png') }}">
+                        </div>
+                        <input type="file" id="fileInput" name="fileInput" accept="image/*" hidden >
+                        <label for="fileInput" class="file-label">Загрузить график</label>
+                    </div>
+                    <div class="form_right">
+                        <input type="text" name="title" placeholder="Введите название" required>
+                        <textarea name="desc" placeholder="Введите описание..." rows="5"></textarea>
+                        <button type="submit">Опубликовать</button>
+                    </div>
+                </form>
+            </div>
+            {% if posts %}
+                {% for post in posts %}
+                    {% if post["author"]==author_user_id %}
+                        <div class="commnposts">
+                            <div class="post">
+                                <div class="post_left">
+                                    <div class="img_n_name">
+                                        <img src="{{ url_for('static', filename='users/graphs/' ~ post['img_path']) }}" alt="График" class="post_image">
+                                        <p class="file_name">{{ post['short_img_path'] }}</p>
+                                    </div>
+                                    <div class="download_block">
+                                        <button class="download_btn">Скачать</button>
+                                        <div class="download_type">IMG ⏷</div>
+                                    </div>
+                                </div>
+
+                                <div class="post_right">
+                                    <div class="post_header">
+                                        <h2 class="post_title">{{ post['title'] }}</h2>
+                                        <div class="post_rating" data-post-id="{{ post['id'] }}">
+                                            <img class="arrow up" src="{{ url_for('static', filename='images/arrow_empty.png') }}" alt="up" data-post-id="{{ post['id'] }}">
+                                            <span class="rating_value">{{ post['rating'] }}</span>
+                                            <img class="arrow down" src="{{ url_for('static', filename='images/arrow_empty.png') }}" alt="down" data-post-id="{{ post['id'] }}">
+                                        </div>
+                                    </div>
+
+                                    <p class="post_desc">
+                                        {{ post['desc'] }}
+                                    </p>
+
+                                    <div class="post_actions">
+                                        <button id='delete_post' hidden></button>
+                                        <img for='delete_post' class="delete_post_btn" data-post-id="{{ post['id'] }}" src="{{ url_for('static', filename='images/trashbin.png') }}" alt="delete">
+                                        <button class="reply_post_btn" data-post-id="{{ post['id'] }}">Ответить</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="commentFormContainer-{{ post['id'] }}" class="hidden comment-form-container">
+                                <div class="comment-form">
+                                    <textarea placeholder="Введите ваш комментарий..." class="comment-textarea" data-post-id="{{ post['id'] }}"></textarea>
+                                    <button type="button" class="send-comment-btn" data-post-id="{{ post['id'] }}">Опубликовать</button>
+                                </div>
+                            </div>
+
+                            {% if post["comms"] %}
+                                <div class="post_comms">
+                                    {% for comm in post["comms"] %}
+                                        {{ render_comment(comm, post, users, 10283471) }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>  
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </main>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const avaInput = document.getElementById("avaInput");
+    const avaButton = document.getElementById("avaButton");
+    const avaImage = document.getElementById("ava");
+
+    avaButton.addEventListener("click", function() {
+        avaInput.click();
+    });
+
+    avaInput.addEventListener("change", async function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const originalSrc = avaImage.src;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            avaImage.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+
+        try {
+            const formData = new FormData();
+            formData.append('avatar', file);
+
+            const response = await fetch("/api/upload_avatar", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await response.json();
+            
+            if (data.status === "success") {
+                console.log("Аватарка обновлена:", data.new_path);
+            } else {
+                alert("Ошибка: " + data.message);
+                avaImage.src = originalSrc;
+            }
+        } catch (error) {
+            console.error("Ошибка:", error);
+            alert("Произошла ошибка при загрузке файла");
+            avaImage.src = originalSrc;
+        }
+    });
+});
+
+// Форма поста
+document.addEventListener("DOMContentLoaded", function() {
+    const toggleButton = document.getElementById("togglePostForm");
+    const postFormContainer = document.getElementById("postFormContainer");
+
+    toggleButton.addEventListener("click", () => {
+        postFormContainer.classList.toggle("hidden");
+        toggleButton.textContent = postFormContainer.classList.contains("hidden")
+            ? "Запостить график"
+            : "Отменить создание";
+    });
+});
+
+document.getElementById("fileInput").addEventListener("change", function (event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById("preview").src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+// ========== СИСТЕМА КОММЕНТАРИЕВ ==========
+document.addEventListener("DOMContentLoaded", function() {
+    // Обработка кнопки "Ответить" на пост
+    document.querySelectorAll('.reply_post_btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const postId = this.getAttribute('data-post-id');
+            const formContainer = document.getElementById(`commentFormContainer-${postId}`);
+            if (formContainer) {
+                formContainer.classList.toggle('hidden');
+            }
+        });
+    });
+
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('reply-to-comment-btn')) {
+            const parentId = e.target.getAttribute('data-parent-id');
+            const formContainer = document.getElementById(`replyFormContainer-${parentId}`);
+            if (formContainer) {
+                formContainer.classList.toggle('hidden');
+            }
+        }
+    });
+
+    document.querySelectorAll('.send-comment-btn').forEach(button => {
+        button.addEventListener('click', async function() {
+            const postId = this.getAttribute('data-post-id');
+            const formContainer = this.closest('.comment-form-container');
+            const textarea = formContainer.querySelector('.comment-textarea');
+            const text = textarea.value.trim();
+
+            console.log("Отправка комментария к посту:", { postId, text });
+
+            if (!text) {
+                alert('Введите текст комментария');
+                return;
+            }
+
+            try {
+                const response = await fetch("/api/add_comment", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        post_id: parseInt(postId),
+                        user_id: "00000",
+                        text: text
+                    })
+                });
+
+                const data = await response.json();
+                console.log("Ответ сервера:", data);
+                
+                if (data.status === "success") {
+                    alert('Комментарий добавлен!');
+                    textarea.value = '';
+                    formContainer.classList.add('hidden');
+                    location.reload();
+                } else {
+                    alert("Ошибка: " + data.message);
+                }
+            } catch (error) {
+                console.error("Ошибка:", error);
+                alert("Произошла ошибка при отправке комментария");
+            }
+        });
+    });
+
+    document.addEventListener('click', async function(e) {
+        if (e.target.classList.contains('send-reply-btn')) {
+            const postId = e.target.getAttribute('data-post-id');
+            const parentId = e.target.getAttribute('data-parent-id');
+            const formContainer = e.target.closest('.reply-form-container');
+            const textarea = formContainer.querySelector('.reply-textarea');
+            const text = textarea.value.trim();
+
+            console.log("Отправка ответа на комментарий:", { 
+                postId: postId, 
+                parentId: parentId, 
+                text: text 
+            });
+
+            if (!text) {
+                alert('Введите текст ответа');
+                return;
+            }
+
+            try {
+                const response = await fetch("/api/add_comment", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        post_id: parseInt(postId),
+                        text: text,
+                        parent_comm_id: parseInt(parentId)
+                    })
+                });
+
+                const data = await response.json();
+                console.log("Ответ сервера на reply:", data);
+                
+                if (data.status === "success") {
+                    alert('Ответ добавлен!');
+                    textarea.value = '';
+                    formContainer.classList.add('hidden');
+                    location.reload();
+                } else {
+                    alert("Ошибка: " + data.message);
+                }
+            } catch (error) {
+                console.error("Ошибка:", error);
+                alert("Произошла ошибка при отправке ответа");
+            }
+        }
+    });
+
+    document.addEventListener('click', async function(e) {
+        if (e.target.classList.contains('delete-comment-btn')) {
+            const postId = e.target.getAttribute('data-post-id');
+            const commentId = e.target.getAttribute('data-comment-id');
+            
+            console.log("Удаление комментария:", { postId, commentId });
+            
+            if (confirm('Вы уверены, что хотите удалить этот комментарий?')) {
+                try {
+                    const response = await fetch("/api/delete_comment", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            post_id: parseInt(postId),
+                            comment_id: parseInt(commentId)
+                        })
+                    });
+
+                    const data = await response.json();
+                    console.log("Ответ сервера на удаление:", data);
+                    
+                    if (data.status === "success") {
+                        alert('Комментарий удален!');
+                        location.reload();
+                    } else {
+                        alert("Ошибка: " + data.message);
+                    }
+                } catch (error) {
+                    console.error("Ошибка:", error);
+                    alert("Произошла ошибка при удалении комментария");
+                }
+            }
+        }
+    });
+
+    document.querySelectorAll('.delete_post_btn').forEach(button => {
+        button.addEventListener('click', async function() {
+            const postId = this.getAttribute('data-post-id');
+            
+            if (confirm('Вы уверены, что хотите удалить этот пост?')) {
+                try {
+                    const response = await fetch("/api/delete_post", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            post_id: parseInt(postId)
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.status === "success") {
+                        alert('Пост удален!');
+                        location.reload();
+                    } else {
+                        alert("Ошибка: " + data.message);
+                    }
+                } catch (error) {
+                    console.error("Ошибка:", error);
+                    alert("Произошла ошибка при удалении поста");
+                }
+            }
+        });
+    });
+});
+
+// ========== СИСТЕМА ЛАЙКОВ/ДИЗЛАЙКОВ ==========
+document.addEventListener("DOMContentLoaded", function() {
+    // Загружаем начальные реакции
+    loadInitialReactions();
+    
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('arrow')) {
+            const ratingContainer = e.target.closest('.post_rating');
+            if (!ratingContainer) return;
+            
+            const postId = ratingContainer.getAttribute('data-post-id');
+            const commentId = ratingContainer.getAttribute('data-comment-id');
+            const ratingElement = ratingContainer.querySelector('.rating_value');
+            const reactionType = e.target.classList.contains('up') ? 'up' : 'down';
+            
+            console.log("Клик по стрелке:", { postId, commentId, reactionType });
+            
+            if (commentId) {
+                reactToComment(postId, commentId, reactionType, ratingElement, ratingContainer);
+            } else {
+                reactToPost(postId, reactionType, ratingElement, ratingContainer);
+            }
+        }
+    });
+});
+
+async function loadInitialReactions() {
+    try {
+        const postContainers = document.querySelectorAll('.post .post_rating:not([data-comment-id])');
+        const postIds = Array.from(postContainers).map(container => {
+            const postId = container.getAttribute('data-post-id');
+            return postId ? parseInt(postId) : null;
+        }).filter(id => id && !isNaN(id));
+        
+        const commentContainers = document.querySelectorAll('.comment .post_rating[data-comment-id]');
+        const commentData = Array.from(commentContainers).map(container => {
+            const postId = container.getAttribute('data-post-id');
+            const commentId = container.getAttribute('data-comment-id');
+            return postId && commentId ? {
+                post_id: parseInt(postId),
+                comment_id: parseInt(commentId)
+            } : null;
+        }).filter(item => item !== null);
+        
+        console.log("Загрузка реакций:", { 
+            postIds: [...new Set(postIds)],
+            commentData,
+            totalPosts: postIds.length,
+            totalComments: commentData.length
+        });
+        
+        const response = await fetch("/api/get_user_reactions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                post_ids: [...new Set(postIds)],
+                comment_data: commentData
+            })
+        });
+        
+        const data = await response.json();
+        console.log("Получены реакции:", data);
+        
+        if (data.status === "success") {
+            updateInitialReactionUI(data.reactions);
+        } else {
+            console.error("Ошибка сервера:", data.message);
+        }
+    } catch (error) {
+        console.error("Ошибка при загрузке начальных реакций:", error);
+    }
+}
+
+function updateInitialReactionUI(reactions) {
+    console.log("Обновление UI реакций:", reactions);
+    
+    let updatedPosts = 0;
+    let updatedComments = 0;
+    
+    Object.keys(reactions.posts).forEach(postId => {
+        const reaction = reactions.posts[postId];
+        const ratingContainer = document.querySelector(`.post_rating[data-post-id="${postId}"]:not([data-comment-id])`);
+        if (ratingContainer) {
+            updateArrowsVisual(ratingContainer, reaction);
+            updatedPosts++;
+        }
+    });
+    
+    Object.keys(reactions.comments).forEach(key => {
+        const [postId, commentId] = key.split('_');
+        const reaction = reactions.comments[key];
+        
+        const ratingContainer = document.querySelector(`.post_rating[data-post-id="${postId}"][data-comment-id="${commentId}"]`);
+        if (ratingContainer) {
+            updateArrowsVisual(ratingContainer, reaction);
+            updatedComments++;
+        }
+    });
+    
+    console.log(`Обновлено: ${updatedPosts} постов, ${updatedComments} комментариев`);
+}
+
+function updateArrowsVisual(ratingContainer, userReaction) {
+    if (!ratingContainer) {
+        console.log("Rating container не найден");
+        return;
+    }
+    
+    const upArrow = ratingContainer.querySelector('.arrow.up');
+    const downArrow = ratingContainer.querySelector('.arrow.down');
+    
+    if (!upArrow || !downArrow) {
+        console.log("Стрелки не найдены");
+        return;
+    }
+    
+    console.log(`Обновление стрелок, реакция: ${userReaction}`);
+    
+    upArrow.style.opacity = '1';
+    downArrow.style.opacity = '1';
+    downArrow.style.transform = 'rotate(180deg)';
+    
+    if (userReaction === 'up') {
+        upArrow.src = "{{ url_for('static', filename='images/arrow_filled.png') }}";
+        downArrow.src = "{{ url_for('static', filename='images/arrow_empty.png') }}";
+        downArrow.style.opacity = '0.5';
+    } else if (userReaction === 'down') {
+        upArrow.src = "{{ url_for('static', filename='images/arrow_empty.png') }}";
+        downArrow.src = "{{ url_for('static', filename='images/arrow_filled.png') }}";
+        upArrow.style.opacity = '0.5';
+    } else {
+        // Нет реакции
+        upArrow.src = "{{ url_for('static', filename='images/arrow_empty.png') }}";
+        downArrow.src = "{{ url_for('static', filename='images/arrow_empty.png') }}";
+    }
+}
+
+async function reactToPost(postId, reactionType, ratingElement, ratingContainer) {
+    try {
+        console.log(`Реакция на пост ${postId}: ${reactionType}`);
+        
+        const response = await fetch("/api/react_post", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                post_id: parseInt(postId),
+                reaction_type: reactionType
+            })
+        });
+        
+        const data = await response.json();
+        console.log("Ответ сервера на реакцию поста:", data);
+        
+        if (data.status === "success") {
+            if (ratingElement) {
+                ratingElement.textContent = data.new_rating;
+            }
+            
+            updateArrowsVisual(ratingContainer, data.user_reaction);
+            
+            console.log(`Рейтинг поста обновлен: ${data.new_rating}`);
+        } else {
+            alert("Ошибка: " + data.message);
+        }
+    } catch (error) {
+        console.error("Ошибка при реакции на пост:", error);
+        alert("Произошла ошибка при установке реакции");
+    }
+}
+
+async function reactToComment(postId, commentId, reactionType, ratingElement, ratingContainer) {
+    try {
+        console.log(`Реакция на комментарий ${commentId} в посте ${postId}: ${reactionType}`);
+        
+        const response = await fetch("/api/react_comment", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                post_id: parseInt(postId),
+                comment_id: parseInt(commentId),
+                reaction_type: reactionType
+            })
+        });
+        
+        const data = await response.json();
+        console.log("Ответ сервера на реакцию комментария:", data);
+        
+        if (data.status === "success") {
+            if (ratingElement) {
+                ratingElement.textContent = data.new_rating;
+            }
+            
+            updateArrowsVisual(ratingContainer, data.user_reaction);
+            
+            console.log(`Рейтинг комментария обновлен: ${data.new_rating}`);
+        } else {
+            alert("Ошибка: " + data.message);
+        }
+    } catch (error) {
+        console.error("Ошибка при реакции на комментарий:", error);
+        alert("Произошла ошибка при установке реакции");
+    }
+}
+</script>
+{% endblock %}

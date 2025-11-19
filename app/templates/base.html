@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Главная{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/logo.png') }}" type="image/png">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    {% block header %}
+    <header class="header">
+        <a href="/graphs">Графики</a>
+        <div class="logo-wrapper">
+            <a href="/">
+            <img alt='Логотип' src="{{ url_for('static', filename='images/logo.png') }}" alt="Логотип">
+            </a>
+        </div>
+        <a href="/cab">Кабинет</a>
+
+    </header>
+    <div class="header-line"></div>
+    {% endblock %}
+
+    {% block content%}
+    {% endblock %}
+    
+    {% block footer %}
+    <div class="line-divider"></div>
+    <footer class="footer-grid">
+        <div class="logo">
+            <img alt='Логотип' src="{{ url_for('static', filename='images/big_logo.png') }}" alt="Лого">
+        </div>
+        <div class="text-block">
+            <p class="thank">Спасибо за пользование сайтом!</p>
+            <p class="contact">Связь:</p>
+            <div class="social-icons">
+                <a target="_blank" href="https://discordapp.com/users/518158653115596820"><img alt='Discord' src="{{ url_for('static', filename='images/discord.png') }}"></a>
+                <a target="_blank" href="https://t.me/Danyayokich"><img alt='Telegram' src="{{ url_for('static', filename='images/tg.png') }}"></a>
+                <a target="_blank" href="https://github.com/danyayok"><img alt='Github' src="{{ url_for('static', filename='images/git.png') }}"></a>
+                <a target="_blank" href="https://mail.google.com/mail/?view=cm&fs=1&to=maslov.daniil.yo@gmail.com"><img alt='Google mail' src="{{ url_for('static', filename='images/gmail.png') }}"></a>
+            </div>
+        </div>
+    </footer>
+    {% endblock %}
+</body>
+</html>

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %} Регистрация - EISALS {% endblock %}
+
+{% block content %}
+<div class="register_wrapper">
+    <form class="post-form-reg" method="POST" action="/api/register" enctype="multipart/form-data"> 
+        <div class="reg_form_left">
+            <div class="form_picture">
+                <img id="ava-log" src="{{ url_for('static', filename='users/avas/ava.png') }}">
+            </div>
+            <input type="file" id="avatarka" name="fileInput" accept="image/*" hidden>
+            <label for="avatarka" class="reg_file-label">Загрузить аватарку</label>
+            <div class="agreement_part">
+                <div class="agreement">
+                    <label for="agree_conf">Согласен с обработкой <br> <a>персональных данных</a></label>
+                    <input type="checkbox" id="agree_conf" name="agree_conf" class="" required>
+                </div>
+                <div class="agreement">
+                    <label for="agree_news">Согласен получать <br> новости и предложения <br> от EISALS</label>
+                    <input type="checkbox" id="agree_news" name="agree_news" class="" checked>
+                </div>
+            </div>
+        </div>
+
+        <div class="reg_form_right">
+            <p> Имя: </p>
+            <input type="text" name="username" placeholder="Имя пользователя" required>
+            <div class="mail_phone">
+                <div class="side_input">
+                    <p> Почта: </p>
+                    <input type="email" name="email" placeholder="Почта" required>
+                </div class="side_input">
+                <div>
+                    <p> Телефон: </p>
+                    <input type="tel" id="phone" name="phone" pattern="+7[0-9]{3}[0-9]{3}[0-9]{4}" placeholder="+7.........." required>
+                </div>
+            </div>
+            <p> Пароль: </p>
+            <input type="password" name="password" placeholder="Пароль" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}" required>
+            <button type="submit">Зарегистрироваться</button>
+            <p class="have_acc"> Есть аккаунт? <a href="/login">Войти</a> </p>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById("avatarka").addEventListener("change", function (event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById("ava-log").src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Главная - EISALS{% endblock %}
+
+{% block content%}
+  <main class="main">
+        <div class="top_part">
+            <div>
+                <p> Достигайте новые высоты </p>
+                <p> С EISALS </p>
+            </div>
+            <img class="graph" alt='График' src="{{ url_for('static', filename='images/graph.png') }}">
+        </div>
+        <div class="start-btn">
+            <a href="/login">Начать</a>
+    </main>
+    <section class="about">
+        <p class="nas">О нас</p>
+        <div class="grid-container">
+            <div class="logo"><img alt='Python логотип' src="{{ url_for('static', filename='images/python.png') }}"></div>
+            <div class="text">Мы лучший и единственный сервис, что позволяет 
+анализировать среду госзакупок с удобством для 
+пользователя. Графики, уже обученные 
+математические модели доступны вам!</div>
+
+            <div class="logo"><img alt='scikit-learn логотип' src="{{ url_for('static', filename='images/scikit-learn.png') }}"></div>
+            <div class="text">Работает благодаря: Python, Scikit-Learn, Next.js
+                <div class="subtext">...Так же, мы предоставляем API парсера...</div>
+            </div>
+
+            <div class="empty"></div>
+            <div class="logo"><img alt='Next.js логотип' src="{{ url_for('static', filename='images/nextjs.png') }}"></div>
+        </div>
+    </section>
+    <div class="sdelal"><p>Сайт сделал:</p></div>
+    <div class="me">
+        <div>
+            <img alt='Разработчик' class="pic" src="{{ url_for('static', filename='images/ya.jpg') }}">
+            <div class="textme">
+                <p style="font-size: 256px; line-height: 0.5;">Я*</p>
+                <p style="font-size: 34px;">* - с небольшой помощью ИИ</p>
+            </div>
+        </div>
+    </div>
+{% endblock %}

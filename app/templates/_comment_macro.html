@@ -1,0 +1,49 @@
+{% macro render_comment(comment, post, users, current_user_id, depth=0) %}
+<div class="comment {% if depth > 0 %}nested-comment{% endif %}" data-depth="{{ depth }}">
+    <div class="main_comment">
+        <div class="comm_head">
+            <img class="avacom" src="{{ url_for('static', filename='users/avas/' ~ users[comment['user']]['img_path']) }}">
+            <p>{{ users[comment['user']]['name'] }}</p>
+            <div class="post_rating" data-post-id="{{ post['id'] }}" data-comment-id="{{ comment['id'] }}">
+                <img class="arrow up" src="{{ url_for('static', filename='images/arrow_empty.png') }}" alt="up">
+                <span class="rating_value">{{ comment['rating'] }}</span>
+                <img class="arrow down" src="{{ url_for('static', filename='images/arrow_empty.png') }}" alt="down">
+                <button class="reply-to-comment-btn" data-post-id="{{ post['id'] }}" data-parent-id="{{ comment['id'] }}">
+                    ответить
+                </button>
+                {% if comment['user'] == current_user_id or post['author'] == current_user_id %}
+                <img class="delete-comment-btn" src="{{ url_for('static', filename='images/trashbin.png') }}" alt="delete"
+                     data-post-id="{{ post['id'] }}" 
+                     data-comment-id="{{ comment['id'] }}" 
+                     title="Удалить комментарий">
+                {% endif %}
+            </div>
+        </div>
+        <div class="comm_text">
+            <p>{{ comment["text"] }}</p>
+        </div>
+    </div>
+
+    <div id="replyFormContainer-{{ comment['id'] }}" class="hidden reply-form-container">
+        <div class="reply-form">
+            <textarea placeholder="Введите ваш ответ..." class="reply-textarea" 
+                      data-post-id="{{ post['id'] }}" data-parent-id="{{ comment['id'] }}"></textarea>
+            <button type="button" class="send-reply-btn" 
+                    data-post-id="{{ post['id'] }}" data-parent-id="{{ comment['id'] }}">Ответить</button>
+        </div>
+    </div>
+
+    {% if comment["comms"] %}
+        <div class="line_and_cc">
+            <div class="line_scary_wrapper">
+                <div class="big_scary_line"></div>
+            </div>
+            <div class="comm_comms">
+                {% for nested_comment in comment['comms'] %}
+                    {{ render_comment(nested_comment, post, users, current_user_id, depth + 1) }}
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endmacro %}
