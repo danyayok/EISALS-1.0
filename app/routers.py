@@ -1,13 +1,14 @@
-from flask import render_template, request, redirect, url_for, jsonify
+from flask import render_template, request, redirect, url_for, jsonify, session
 from datetime import datetime
 import uuid
 import os
 from app.data_manager import get_user, get_posts_by_author, add_post, get_all_users, remove_post, add_user, load_json, \
     save_json, USERS_PATH, POSTS_PATH, add_comment, delete_comment, can_delete_comment, get_posts, generate_id, \
-    react_to_post, react_to_comment, get_user_reaction_to_post, get_user_reaction_to_comment
+    react_to_post, react_to_comment, get_user_reaction_to_post, get_user_reaction_to_comment, get_post, valid_pass
 from config import Config
 from werkzeug.utils import secure_filename
 
+SECRET_CODE = Config.SECRET_KEY
 USER_ID = 194679
 
 
@@ -16,10 +17,17 @@ def allowed_file(filename):
 
 
 def register_routes(app):
+
+    @app.route('/test_session')
+    def give_test_session():
+        session['test_session'] = "rabotaet"
+        return jsonify({"test_session": "rabotaet"})
     @app.route('/admin')
     def admin():
         # просто шаблон для админки
-        user_id = USER_ID
+        user_id = session["user_id"]
+        if not (user_id and session.get("secret_key") == SECRET_CODE):
+            return jsonify({"error": "Not authorized"}), 403
         user = get_user(user_id)
         if not user:
             # будем возвращать 404 типо умные хихих страницы то "нет", а на деле он не админ
@@ -32,7 +40,11 @@ def register_routes(app):
 
     @app.route('/cab')
     def cab():
-        user_id = USER_ID
+        user_id = session.get("user_id", None)
+
+        if not (user_id and session.get("secret_key") == SECRET_CODE):
+            return redirect("/login")
+
         user = get_user(user_id)
         if not user:
             return "Пользователь не найден", 404
@@ -40,27 +52,26 @@ def register_routes(app):
         posts_user = get_posts_by_author(user_id)
         users = get_all_users()
         return render_template('cab.html',
-                               posts=posts_user,
-                               posts_len=len(posts_user),
-                               rating=user["rating"],
-                               created_at=user["created_at"],
-                               comments_len=len(user["reacted"]["commented_at"]),
-                               ava_path=user["img_path"],
-                               name=user["name"],
-                               author_user_id=user_id,
-                               users=users)
+                                posts=posts_user,
+                                posts_len=len(posts_user),
+                                rating=user["rating"],
+                                created_at=user["created_at"],
+                                comments_len=len(user["reacted"]["commented_at"]),
+                                ava_path=user["img_path"],
+                                name=user["name"],
+                                author_user_id=user_id,
+                                users=users)
+        return 403
 
     @app.route('/login')
     def login():
-        logged_in = 0
-        if logged_in:
+        if session.get('user_id'):
             return redirect('/cab')
         return render_template('login.html')
 
     @app.route('/register')
     def register():
-        logged_in = 0
-        if logged_in:
+        if session.get('user_id'):
             return redirect('/cab')
         return render_template('register.html')
 
@@ -112,12 +123,15 @@ def register_routes(app):
     @app.route('/api/add_comment', methods=['POST'])
     def add_comment_route():
         try:
+            user_id = session["user_id"]
+
+            if not (user_id and session.get("secret_key") == SECRET_CODE):
+                return jsonify({"error": "Not authorized"}), 403
             data = request.get_json()
             if not data:
                 return jsonify({"status": "error", "message": "No JSON data provided"}), 400
             print(request)
             post_id = data.get("post_id")
-            user_id = data.get("user_id")
             text = data.get("text")
             parent_comm_id = data.get("parent_comm_id")
 
@@ -147,13 +161,16 @@ def register_routes(app):
     @app.route('/api/delete_comment', methods=['POST'])
     def delete_comment_route():
         try:
+            user_id = session["user_id"]
+
+            if not (user_id and session.get("secret_key") == SECRET_CODE):
+                return jsonify({"error": "Not authorized"}), 403
             data = request.get_json()
             if not data:
                 return jsonify({"status": "error", "message": "No JSON data provided"}), 400
 
             post_id = data.get("post_id")
             comment_id = data.get("comment_id")
-            user_id = USER_ID
 
             print(f"DEBUG: Удаление комментария - post_id: {post_id}, comment_id: {comment_id}")
 
@@ -176,6 +193,10 @@ def register_routes(app):
     @app.route('/api/react_post', methods=['POST'])
     def react_post_route():
         try:
+            user_id = session["user_id"]
+
+            if not (user_id and session.get("secret_key") == SECRET_CODE):
+                return jsonify({"error": "Not authorized"}), 403
             data = request.get_json()
             if not data:
                 return jsonify({"status": "error", "message": "No JSON data provided"}), 400
@@ -183,7 +204,6 @@ def register_routes(app):
             post_id = data.get("post_id")
             reaction_type = data.get("reaction_type")
             print(post_id, reaction_type)
-            user_id = USER_ID
 
             print(f"DEBUG: Реакция на пост - post_id: {post_id}, reaction_type: {reaction_type}")
 
@@ -212,6 +232,10 @@ def register_routes(app):
     @app.route('/api/react_comment', methods=['POST'])
     def react_comment_route():
         try:
+            user_id = session["user_id"]
+
+            if not (user_id and session.get("secret_key") == SECRET_CODE):
+                return jsonify({"error": "Not authorized"}), 403
             data = request.get_json()
             if not data:
                 return jsonify({"status": "error", "message": "No JSON data provided"}), 400
@@ -219,7 +243,6 @@ def register_routes(app):
             post_id = data.get("post_id")
             comment_id = data.get("comment_id")
             reaction_type = data.get("reaction_type")
-            user_id = USER_ID
 
             print(
                 f"DEBUG: Реакция на комментарий - post_id: {post_id}, comment_id: {comment_id}, reaction_type: {reaction_type}")
@@ -251,13 +274,16 @@ def register_routes(app):
     @app.route('/api/get_user_reactions', methods=['POST'])
     def get_user_reactions_route():
         try:
+            user_id = session["user_id"]
+
+            if not (user_id and session.get("secret_key") == SECRET_CODE):
+                return jsonify({"error": "Not authorized"}), 403
             data = request.get_json()
             if not data:
                 return jsonify({"status": "error", "message": "No JSON data provided"}), 400
 
             post_ids = data.get("post_ids", [])
             comment_data = data.get("comment_data", [])
-            user_id = USER_ID
 
             print(f"DEBUG: Получено {len(post_ids)} постов и {len(comment_data)} комментариев")
 
@@ -296,6 +322,10 @@ def register_routes(app):
     @app.route('/api/upload_avatar', methods=['POST'])
     def upload_avatar():
         try:
+            user_id = session["user_id"]
+
+            if not(user_id and session.get("secret_key")==SECRET_CODE):
+                return jsonify({"error": "Not authorized"}), 403
             if 'avatar' not in request.files:
                 return jsonify({'status': 'error', 'message': 'Файл не найден'})
             file = request.files['avatar']
@@ -308,7 +338,6 @@ def register_routes(app):
                 os.makedirs(AVA_FOLDER, exist_ok=True)
                 file_path = os.path.join(AVA_FOLDER, filename)
                 file.save(file_path)
-                user_id = USER_ID
                 users = load_json(USERS_PATH)
                 if str(user_id) in users:
                     try:
@@ -338,6 +367,8 @@ def register_routes(app):
     @app.route('/api/register', methods=["POST"])
     def reg_user():
         try:
+            if session.get('user_id') and session["secret_key"]==SECRET_CODE:
+                return redirect("/cab")
             username = request.form.get('username')
             password = request.form.get('password')
             if len(password) < 8:
@@ -346,7 +377,6 @@ def register_routes(app):
             phone = request.form.get('phone')
             subscribed = request.form.get('agree_news')
             file = request.files.get('fileInput')
-            img_path = None
             basedir = os.path.abspath(os.path.dirname(__file__))
             AVA_FOLDER = os.path.join(basedir, "static", "users", "avas")
             os.makedirs(AVA_FOLDER, exist_ok=True)
@@ -361,13 +391,14 @@ def register_routes(app):
                 print("Файл не был загружен, используем стандартную аватарку.")
                 img_path = "ava.png"
 
-            idishnik = generate_id()
+            idishnik = str(generate_id())
             new_user = {
                 idishnik: {
                     "name": username,
                     "password": password,
                     "email": email,
                     "phone": phone,
+                    "subscribed": subscribed,
                     "rating": 0,
                     "img_path": img_path,
                     "reacted": {
@@ -380,24 +411,51 @@ def register_routes(app):
             }
 
             add_user(new_user, idishnik)
+            session['user_id'] = idishnik
+            session["date_created"] = datetime.utcnow().isoformat()
+            session["secret_key"] = SECRET_CODE
             return redirect(url_for('cab'))
         except Exception as e:
             print(f"Ошибка при регистрации: {e}")
             return jsonify({"status": "error", "message": str(e)}), 500
 
+    @app.route('/api/login', methods=["POST"])
+    def login_user():
+        try:
+            if session.get('user_id') and session["secret_key"]==SECRET_CODE:
+                return redirect("/cab")
+            email = request.form.get('email')
+            password = request.form.get('password')
+            print(email, password)
+            valid, date, id = valid_pass(email, password)
+            if valid:
+                session['user_id'] = id
+                session['date_created'] = datetime.utcnow().isoformat()
+                session["secret_key"] = SECRET_CODE
+                return redirect("/cab")
+            else:
+                return jsonify({"error": "Wrong email or password"}), 403
+        except Exception as e:
+            print(f"Ошибка входа: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    @app.route('/api/logout')
+    def logout():
+        session.clear()
+        return redirect("/")
     @app.route('/api/add_post', methods=['POST'])
     def add_post_route():
         try:
+            if not session.get('user_id') or session["secret_key"] != SECRET_CODE:
+                return jsonify({"error": "Not authorized!"}), 403
             title = request.form.get('title')
             desc = request.form.get('desc')
             file = request.files.get('fileInput')
             print("DEBUG file:", file)
-
             basedir = os.path.abspath(os.path.dirname(__file__))
             GRAPHS_FOLDER = os.path.join(basedir, "static", "users", "graphs")
             os.makedirs(GRAPHS_FOLDER, exist_ok=True)
 
-            img_path = None
 
             if file and file.filename:
                 old_filename = file.filename
@@ -419,7 +477,7 @@ def register_routes(app):
                 "short_img_path": old_filename,
                 "img_path": img_path,
                 "rating": 0,
-                "author": USER_ID,
+                "author": session.get('user_id'),
                 "who_reacted": {"up": [], "down": []},
                 "comms": [],
                 "created_at": datetime.utcnow().isoformat()
@@ -435,10 +493,14 @@ def register_routes(app):
     def delete_post():
         try:
             post_id = request.json.get('post_id')
+
             if not post_id:
                 return jsonify({"status": "error", "message": "No post_id provided"}), 400
-            remove_post(post_id)
-            return jsonify({"status": "success"})
+            if session.get('user_id')==get_post(post_id)["author"] and session["secret_key"]==SECRET_CODE:
+                remove_post(post_id)
+                return jsonify({"status": "success"})
+            else:
+                return jsonify({"error": "Not Authorized!"}), 403
         except Exception as e:
             print(f"Ошибка при удалении поста: {e}")
             return jsonify({"status": "error", "message": str(e)}), 500

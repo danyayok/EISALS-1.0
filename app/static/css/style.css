@@ -10,6 +10,8 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+    overflow-x: hidden;
+    max-width: 100vw;
 }
 
 /* HEADER STYLES */
@@ -304,6 +306,13 @@ footer {
     align-items: center;
 }
 
+.leave_button {
+    width: 400px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
 .cab_button_new_post {
     flex: 1;
     display: flex;
@@ -312,7 +321,7 @@ footer {
 }
 
 .cab_button_ava button,
-.cab_button_new_post button {
+.cab_button_new_post button, .leave_button a {
     font-family: 'Jost', Arial, sans-serif;
     font-size: 36px;
     color: #fff;

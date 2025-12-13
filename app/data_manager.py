@@ -486,7 +486,11 @@ def remove_post(post_id: int):
             postiki.append(post)
     save_json(POSTS_PATH, postiki)
     _load_used_ids()
-
+def get_post(post_id):
+    posts = load_json(POSTS_PATH)
+    for post in posts:
+        if post["id"] == post_id:
+            return post
 def get_posts():
     return load_json(POSTS_PATH)
 
@@ -499,6 +503,18 @@ def add_post(post_data: dict):
     posts.append(post_data)
     save_json(POSTS_PATH, posts)
     _load_used_ids()
+
+
+def valid_pass(mail, password):
+    mail = mail.strip()
+    password = password.strip()
+    users = load_json(USERS_PATH)
+    for user_id, user_data in users.items():
+        if user_data.get('email') == mail and user_data.get('password') == password:
+            return True, user_data.get('created_at'), user_id
+
+    # Если не нашли
+    return False, None, None
 
 _load_used_ids()
 print("✅ Система уникальных ID инициализирована")
