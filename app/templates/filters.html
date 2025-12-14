@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+ <aside class="tags_aside">
+        <div>
+            <p>Область:</p>
+            <select id="region" name="oblast">
+                <option value="">Все области</option>
+                {% for region in filters.regions %}
+                <option value="{{ region.id }}">{{ region.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <p>Цена:</p>
+            <input type="range" id="priceRange"
+                   min="{{ filters.price_range.min }}"
+                   max="{{ filters.price_range.max }}"
+                   step="{{ filters.price_range.step }}"
+                   value="0">
+            <div class="price-labels">
+                <span id="currentPrice">0</span>
+                <span>{{ filters.price_range.max }}</span>
+            </div>
+        </div>
+
+        <div>
+            <p>Тема:</p>
+            <div class="themes-list">
+                {% for theme in filters.themes %}
+                <label class="theme-option">
+                    <input type="radio" name="theme" value="{{ theme.id }}">
+                    <span>{{ theme.name }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div>
+            <p>Закон:</p>
+            <div class="laws-list">
+                {% for law in filters.laws %}
+                <label class="law-option">
+                    <input type="radio" name="law" value="{{ law.id }}">
+                    <span>{{ law.name }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <button onclick="applyFilters()" class="apply-filters-btn">Применить фильтры</button>
+    </aside>
+</body>
+</html>

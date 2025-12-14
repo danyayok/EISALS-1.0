@@ -141,43 +141,56 @@ def add_comment(post_id, user_id, text, parent_comm_id=None):
         print(f"Ошибка в add_comment: {e}")
         return None
 
+
 def delete_comment(post_id, comment_id, user_id):
     try:
         posts = load_json(POSTS_PATH)
         users = load_json(USERS_PATH)
         post_id = int(post_id)
         comment_id = int(comment_id)
+        user_id = int(user_id)
 
         for post in posts:
             if post["id"] == post_id:
                 # вообще я этот гений инженерии ввиде рекурсивной функции почти везде использую
-                # т.к. сделал умные комменты с возможность вставить вложенные комменты бесконечно
+                # т.к. сделал умные комменты с возможностью вставить вложенные комменты бесконечно
                 def check_comments(comments, target_id):
-                    for comment in comments:
+                    for i, comment in enumerate(comments):
                         if comment["id"] == target_id:
-                            print("Deletion if")
-                            comments.remove(comment)
+                            print(f"DEBUG: Найден комментарий для удаления: {comment_id}")
+                            comments.pop(i)
                             return True
                         if "comms" in comment and comment["comms"]:
                             result = check_comments(comment["comms"], target_id)
                             if result:
                                 return result
                     return False
+
                 result = check_comments(post["comms"], comment_id)
+
                 if result:
                     if str(user_id) in users:
-                        if post_id not in users[str(user_id)]["reacted"]["commented_at"]:
+                        commented_at_list = users[str(user_id)]["reacted"]["commented_at"]
+                        if comment_id in commented_at_list:
                             users[str(user_id)]["reacted"]["commented_at"].remove(comment_id)
+                            print(f"DEBUG: Удален comment_id {comment_id} из списка пользователя {user_id}")
+
                     save_json(USERS_PATH, users)
                     save_json(POSTS_PATH, posts)
                     _load_used_ids()
-                    print(f"DEBUG: Комментарий добавлен с ID {comment_id}")
-                    return result
-                print(f"DEBUG: комментарий {comment_id} не найден")
-                return None
+
+                    print(f"DEBUG: Комментарий {comment_id} успешно удален")
+                    return True
+
+                print(f"DEBUG: Комментарий {comment_id} не найден")
+                return False
+
+        print(f"DEBUG: Пост {post_id} не найден")
         return False
     except Exception as e:
         print(f"Ошибка в delete_comment: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def can_delete_comment(user_id, comment_id, post_id):
@@ -482,15 +495,23 @@ def remove_post(post_id: int):
     posts = load_json(POSTS_PATH)
     postiki = []
     for post in posts:
-        if post["id"] != post_id:
+        if str(post["id"]) != str(post_id):
             postiki.append(post)
     save_json(POSTS_PATH, postiki)
     _load_used_ids()
+
+
 def get_post(post_id):
     posts = load_json(POSTS_PATH)
+    try:
+        post_id_int = int(post_id)
+    except (ValueError, TypeError):
+        return None
+
     for post in posts:
-        if post["id"] == post_id:
+        if post.get("id") == post_id_int:
             return post
+    return None
 def get_posts():
     return load_json(POSTS_PATH)
 

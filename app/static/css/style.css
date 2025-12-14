@@ -1074,6 +1074,10 @@ footer {
     padding: 20px;
     height: fit-content;
 }
+
+.tags_aside p{
+    font-size: 30px;
+}
 .checkouts{
     display: flex;
     flex-direction: column;

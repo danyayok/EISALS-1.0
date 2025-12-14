@@ -5,189 +5,598 @@
 
 {% block content %}
 
-<div class="graphs_wrapper">
-    <aside class="tags_aside">
-        <div>
-            <p>Область:</p>
-            <select id="region" name="oblast">
-                <option value="">Все области</option>
-                {% for region in filters.regions %}
-                <option value="{{ region.id }}">{{ region.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div>
-            <p>Цена:</p>
-            <input type="range" id="priceRange" 
-                   min="{{ filters.price_range.min }}" 
-                   max="{{ filters.price_range.max }}" 
-                   step="{{ filters.price_range.step }}"
-                   value="0">
-            <div class="price-labels">
-                <span id="currentPrice">0</span>
-                <span>100000</span>
-            </div>
-        </div>
-
-        <div>
-            <p>Тема:</p>
-            <div class="themes-list">
-                {% for theme in filters.themes %}
-                <label class="theme-option">
-                    <input type="radio" name="theme" value="{{ theme.id }}">
-                    {{ theme.name }}
-                </label>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div>
-            <p>Закон:</p>
-            <div class="laws-list">
-                {% for law in filters.laws %}
-                <label class="law-option">
-                    <input type="radio" name="law" value="{{ law.id }}">
-                    {{ law.name }}
-                </label>
-                {% endfor %}
-            </div>
-        </div>
-
-        <button onclick="applyFilters()" class="apply-filters-btn">Применить фильтры</button>
-    </aside>
-
-    <section class="posts_area">
-        {% if posts %}
-            {% for post in posts[:10] %}
-                <div class="commnposts">
-                    <div class="post">
-                        <div class="post_left">
-                            <div class="img_n_name">
-                                <img src="{{ url_for('static', filename='users/graphs/' ~ post['img_path']) }}" alt="График" class="post_image">
-                                <p class="file_name">{{ post['short_img_path'] }}</p>
-                            </div>
-                            <div class="download_block">
-                                <button class="download_btn">Скачать</button>
-                                <div class="download_type">IMG ⏷</div>
-                            </div>
-                        </div>
-
-                        <div class="post_right">
-                            <div class="post_header">
-                                <h2 class="post_title">{{ post['title'] }}</h2>
-                                <div class="post_rating" data-post-id="{{ post['id'] }}">
-                                    <img class="arrow up" src="{{ url_for('static', filename='images/arrow_empty.png') }}" alt="up" data-post-id="{{ post['id'] }}">
-                                    <span class="rating_value">{{ post['rating'] }}</span>
-                                    <img class="arrow down" src="{{ url_for('static', filename='images/arrow_empty.png') }}" alt="down" data-post-id="{{ post['id'] }}">
-                                </div>
-                            </div>
-
-                            <p class="post_desc">
-                                {{ post['desc'] }}
-                            </p>
-
-                            <div class="post_actions">
-                                <div class="author_info">
-                                    <span>{{ users[post.author].name if post.author in users else "Неизвестен" }}</span>
-                                </div>
-                                {% if post.author == USER_ID %}
-                                    <button id='delete_post' hidden></button>
-                                    <img for='delete_post' class="delete_post_btn" data-post-id="{{ post['id'] }}" src="{{ url_for('static', filename='images/trashbin.png') }}" alt="delete">
-                                {% endif %}
-                                <button class="reply_post_btn" data-post-id="{{ post['id'] }}">Ответить</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div id="commentFormContainer-{{ post['id'] }}" class="hidden comment-form-container">
-                        <div class="comment-form">
-                            <textarea placeholder="Введите ваш комментарий..." class="comment-textarea" data-post-id="{{ post['id'] }}"></textarea>
-                            <button type="button" class="send-comment-btn" data-post-id="{{ post['id'] }}">Опубликовать</button>
-                        </div>
-                    </div>
-                    
-                    {% if post["comms"] %}
-                        <div class="post_comms">
-                            {% for comm in post["comms"] %}
-                                {{ render_comment(comm, post, users, USER_ID) }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>  
-            {% endfor %}
-        {% else %}
-            <div class="no-posts">
-                <p>Нет постов для отображения</p>
-            </div>
-        {% endif %}
-    </section>
-    <div id="loader" class="loader" style="display:none;">Загрузка...</div>
+<div class="posts_area" id="postsArea">
 </div>
 
+<div id="loader" class="loader hidden">Загрузка...</div>
+
 <script>
-    document.getElementById('priceRange').addEventListener('input', function(e) {
-        document.getElementById('currentPrice').textContent = e.target.value;
+const USER_ID = {{ USER_ID | tojson }};
+let page = 1;
+let loading = false;
+let hasMore = true;
+
+const loader = document.getElementById('loader');
+const postsArea = document.getElementById('postsArea');
+
+async function loadPosts() {
+    if (loading || !hasMore) return;
+
+    loading = true;
+    loader.classList.remove('hidden');
+
+    try {
+        const params = new URLSearchParams({
+            page: page,
+            limit: 3
+        });
+
+        console.log('Загружаем посты с параметрами:', params.toString());
+        const response = await fetch(`/api/posts?${params}`);
+        const data = await response.json();
+        console.log('Получены данные постов:', data);
+
+        if (data.posts && data.posts.length > 0) {
+            // Получаем всех пользователей для отображения аватарок и имён
+            const usersResponse = await fetch('/api/get_users_data');
+            const usersData = await usersResponse.json();
+            const users = usersData.users || {};
+            console.log('Получены пользователи:', users);
+
+            // Получаем реакции пользователя
+            const postIds = data.posts.map(post => post.id);
+            const commentData = [];
+
+            // Собираем все комментарии для получения реакций
+            data.posts.forEach(post => {
+                if (post.comms && post.comms.length > 0) {
+                    collectCommentIds(post.comms, post.id, commentData);
+                }
+            });
+
+            console.log('Запрашиваем реакции для:', { postIds, commentData });
+
+            // Получаем реакции пользователя
+            let reactions = { posts: {}, comments: {} };
+            if (postIds.length > 0 || commentData.length > 0) {
+                try {
+                    const reactionsResponse = await fetch('/api/get_user_reactions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            post_ids: postIds,
+                            comment_data: commentData
+                        })
+                    });
+
+                    if (reactionsResponse.ok) {
+                        const reactionsData = await reactionsResponse.json();
+                        console.log('Получены реакции:', reactionsData);
+                        if (reactionsData.status === 'success') {
+                            reactions = reactionsData.reactions;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Ошибка получения реакций:', error);
+                }
+            }
+
+            // Рендерим посты
+            data.posts.forEach(post => {
+                const userReaction = reactions.posts[post.id] || null;
+                const postElement = createPostElement(post, userReaction, reactions.comments, users);
+                postsArea.insertAdjacentHTML('beforeend', postElement);
+            });
+
+            hasMore = data.has_more;
+            page++;
+
+            // Инициализируем обработчики событий для новых постов
+            initializeEventHandlers();
+        } else {
+            if (page === 1) {
+                postsArea.innerHTML = '<p style="color:#fff;text-align:center;font-size:24px;padding:40px;">Посты не найдены</p>';
+            }
+            hasMore = false;
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки постов:', error);
+        if (page === 1) {
+            postsArea.innerHTML = '<p style="color:#f00;text-align:center;font-size:24px;padding:40px;">Ошибка загрузки постов: ' + error.message + '</p>';
+        }
+    } finally {
+        loading = false;
+        loader.classList.add('hidden');
+    }
+}
+
+function collectCommentIds(comments, postId, resultArray) {
+    comments.forEach(comment => {
+        resultArray.push({
+            post_id: postId,
+            comment_id: comment.id
+        });
+        if (comment.comms && comment.comms.length > 0) {
+            collectCommentIds(comment.comms, postId, resultArray);
+        }
+    });
+}
+
+function createPostElement(post, userReaction, commentReactions, users) {
+    const isAuthor = post.author == USER_ID;
+    const authorUser = users[post.author] || {};
+    console.log('Автор поста:', post.author, 'Данные:', authorUser);
+
+    // Определяем классы стрелок на основе реакции пользователя
+    const upArrowClass = userReaction === 'up' ? 'arrow up active' : 'arrow up';
+    const downArrowClass = userReaction === 'down' ? 'arrow down active' : 'arrow down';
+
+    // Создаем HTML для комментариев
+    let commsHtml = '';
+    if (post.comms && post.comms.length > 0) {
+        commsHtml = '<div class="post_comms">';
+        post.comms.forEach(comment => {
+            commsHtml += createCommentRecursive(comment, post, commentReactions, users);
+        });
+        commsHtml += '</div>';
+    }
+
+    return `
+    <div class="commnposts">
+        <div class="post">
+            <div class="post_left">
+                <div class="img_n_name">
+                    <img src="/static/users/graphs/${post.img_path || 'graph.png'}" alt="График" class="post_image">
+                    <p class="file_name">${escapeHtml(post.short_img_path || 'graph.png')}</p>
+                </div>
+                <div class="download_block">
+                    <button class="download_btn" onclick="downloadGraph('${post.img_path || ''}', '${post.short_img_path || 'graph.png'}')">Скачать</button>
+                    <div class="download_type">IMG ⏷</div>
+                </div>
+            </div>
+
+            <div class="post_right">
+                <div class="post_header">
+                    <h2 class="post_title">${escapeHtml(post.title || 'Без названия')}</h2>
+                    <div class="post_rating" data-post-id="${post.id}">
+                        <img class="${upArrowClass}" src="/static/images/arrow_empty.png" alt="up" data-post-id="${post.id}" data-reaction-type="up">
+                        <span class="rating_value">${post.rating || 0}</span>
+                        <img class="${downArrowClass}" src="/static/images/arrow_empty.png" alt="down" data-post-id="${post.id}" data-reaction-type="down">
+                    </div>
+                </div>
+
+                <p class="post_desc">${escapeHtml(post.desc || 'Описание отсутствует')}</p>
+
+                <div class="post_actions">
+                    <div class="author_info">
+                        <img class="author_avatar" src="/static/users/avas/${authorUser.img_path || 'ava.png'}" style="width:30px;height:30px;border-radius:50%;border:2px solid #fff;">
+                        <span>${escapeHtml(authorUser.name || 'Неизвестный автор')}</span>
+                    </div>
+                    ${isAuthor ? `
+                        <img class="delete_post_btn" src="/static/images/trashbin.png" alt="delete"
+                             data-post-id="${post.id}" title="Удалить пост" style="cursor:pointer;width:45px;height:60px;">
+                    ` : ''}
+                    <button class="reply_post_btn" data-post-id="${post.id}">Ответить</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="commentFormContainer-${post.id}" class="hidden comment-form-container">
+            <div class="comment-form">
+                <textarea placeholder="Введите ваш комментарий..." class="comment-textarea" data-post-id="${post.id}"></textarea>
+                <button type="button" class="send-comment-btn" data-post-id="${post.id}">Опубликовать</button>
+            </div>
+        </div>
+
+        ${commsHtml}
+    </div>
+    `;
+}
+
+function createCommentRecursive(comment, post, commentReactions, users, depth = 0) {
+    const commentUser = users[comment.user] || {};
+    console.log('Автор комментария:', comment.user, 'Данные:', commentUser);
+
+    const key = `${post.id}_${comment.id}`;
+    const userReaction = commentReactions[key] || null;
+
+    const upArrowClass = userReaction === 'up' ? 'arrow up active' : 'arrow up';
+    const downArrowClass = userReaction === 'down' ? 'arrow down active' : 'arrow down';
+
+    let html = `
+    <div class="comment ${depth > 0 ? 'nested-comment' : ''}" data-depth="${depth}">
+        <div class="main_comment">
+            <div class="comm_head">
+                <img class="avacom" src="/static/users/avas/${commentUser.img_path || 'ava.png'}">
+                <p>${escapeHtml(commentUser.name || 'Аноним')}</p>
+                <div class="post_rating" data-post-id="${post.id}" data-comment-id="${comment.id}">
+                    <img class="${upArrowClass}" src="/static/images/arrow_empty.png" alt="up" data-post-id="${post.id}" data-comment-id="${comment.id}" data-reaction-type="up">
+                    <span class="rating_value">${comment.rating || 0}</span>
+                    <img class="${downArrowClass}" src="/static/images/arrow_empty.png" alt="down" data-post-id="${post.id}" data-comment-id="${comment.id}" data-reaction-type="down">
+                    <button class="reply-to-comment-btn" data-post-id="${post.id}" data-parent-id="${comment.id}">
+                        ответить
+                    </button>
+                    ${comment.user == USER_ID || post.author == USER_ID ? `
+                    <img class="delete-comment-btn" src="/static/images/trashbin.png" alt="delete"
+                         data-post-id="${post.id}"
+                         data-comment-id="${comment.id}"
+                         title="Удалить комментарий">
+                    ` : ''}
+                </div>
+            </div>
+            <div class="comm_text">
+                <p>${escapeHtml(comment.text || '')}</p>
+            </div>
+        </div>
+
+        <div id="replyFormContainer-${comment.id}" class="hidden reply-form-container">
+            <div class="reply-form">
+                <textarea placeholder="Введите ваш ответ..." class="reply-textarea"
+                          data-post-id="${post.id}" data-parent-id="${comment.id}"></textarea>
+                <button type="button" class="send-reply-btn"
+                        data-post-id="${post.id}" data-parent-id="${comment.id}">Ответить</button>
+            </div>
+        </div>
+    `;
+
+    // Вложенные комментарии
+    if (comment.comms && comment.comms.length > 0) {
+        html += `
+        <div class="line_and_cc">
+            <div class="line_scary_wrapper">
+                <div class="big_scary_line"></div>
+            </div>
+            <div class="comm_comms">
+        `;
+        comment.comms.forEach(nestedComment => {
+            html += createCommentRecursive(nestedComment, post, commentReactions, users, depth + 1);
+        });
+        html += `
+            </div>
+        </div>
+        `;
+    }
+
+    html += `</div>`;
+    return html;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function downloadGraph(imgPath, fileName) {
+    if (!imgPath || !fileName) return;
+    const link = document.createElement('a');
+    link.href = `/static/users/graphs/${imgPath}`;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function initializeEventHandlers() {
+    // Обработчики для лайков/дизлайков постов
+    document.querySelectorAll('.post_rating .arrow').forEach(arrow => {
+        arrow.addEventListener('click', async function() {
+            const postId = this.dataset.postId;
+            const reactionType = this.dataset.reactionType;
+
+            const response = await fetch('/api/react_post', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    post_id: postId,
+                    reaction_type: reactionType
+                })
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                // Обновляем отображение рейтинга
+                const ratingElement = this.closest('.post_rating').querySelector('.rating_value');
+                if (ratingElement) {
+                    ratingElement.textContent = data.new_rating;
+                }
+
+                // Обновляем классы стрелок
+                const upArrow = this.closest('.post_rating').querySelector('.arrow.up');
+                const downArrow = this.closest('.post_rating').querySelector('.arrow.down');
+
+                if (upArrow && downArrow) {
+                    if (data.user_reaction === 'up') {
+                        upArrow.classList.add('active');
+                        downArrow.classList.remove('active');
+                    } else if (data.user_reaction === 'down') {
+                        downArrow.classList.add('active');
+                        upArrow.classList.remove('active');
+                    } else {
+                        upArrow.classList.remove('active');
+                        downArrow.classList.remove('active');
+                    }
+                }
+            }
+        });
     });
 
-    function applyFilters() {
-        const region = document.getElementById('region').value;
-        const price = document.getElementById('priceRange').value;
-        const theme = document.querySelector('input[name="theme"]:checked')?.value;
-        const law = document.querySelector('input[name="law"]:checked')?.value;
+    // Обработчики для лайков/дизлайков комментариев
+    document.querySelectorAll('.comm_head .post_rating .arrow').forEach(arrow => {
+        arrow.addEventListener('click', async function() {
+            const postId = this.dataset.postId;
+            const commentId = this.dataset.commentId;
+            const reactionType = this.dataset.reactionType;
 
-        console.log('Фильтры:', { region, price, theme, law });
-        // над добавить фильтры
-    }
-    // когда доходишь до блока триггера делаем запрос на посты
-     class PostLoader {
-      constructor() {
-        this.cache = new Map();
-        this.controller = null; // для отмены запросов
-      }
+            if (!postId || !commentId) return;
 
-      async fetchPosts(page, limit = 3) {
-        if (this.controller) {
-          this.controller.abort();
-        }
+            const response = await fetch('/api/react_comment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    post_id: postId,
+                    comment_id: commentId,
+                    reaction_type: reactionType
+                })
+            });
 
-        this.controller = new AbortController();
+            const data = await response.json();
+            if (data.status === 'success') {
+                // Обновляем отображение рейтинга
+                const ratingElement = this.closest('.post_rating').querySelector('.rating_value');
+                if (ratingElement) {
+                    ratingElement.textContent = data.new_rating;
+                }
 
-        try {
-          const cacheKey = `page-${page}`;
+                // Обновляем классы стрелок
+                const upArrow = this.closest('.post_rating').querySelector('.arrow.up');
+                const downArrow = this.closest('.post_rating').querySelector('.arrow.down');
 
-          if (this.cache.has(cacheKey)) {
-            return this.cache.get(cacheKey);
-          }
-
-          const response = await fetch(
-            `/api/posts?page=${page}&limit=${limit}&_=${Date.now()}`,
-            {
-              signal: this.controller.signal,
-              headers: {
-                'Accept': 'application/json',
-              }
+                if (upArrow && downArrow) {
+                    if (data.user_reaction === 'up') {
+                        upArrow.classList.add('active');
+                        downArrow.classList.remove('active');
+                    } else if (data.user_reaction === 'down') {
+                        downArrow.classList.add('active');
+                        upArrow.classList.remove('active');
+                    } else {
+                        upArrow.classList.remove('active');
+                        downArrow.classList.remove('active');
+                    }
+                }
             }
-          );
+        });
+    });
 
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    // Обработчики для кнопки ответа на пост
+    document.querySelectorAll('.reply_post_btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const postId = this.dataset.postId;
+            const formContainer = document.getElementById(`commentFormContainer-${postId}`);
+            if (formContainer) {
+                formContainer.classList.toggle('hidden');
 
-          const posts = await response.json();
-          this.cache.set(cacheKey, posts);
+                if (!formContainer.classList.contains('hidden')) {
+                    const textarea = formContainer.querySelector('.comment-textarea');
+                    if (textarea) textarea.focus();
+                }
+            }
+        });
+    });
 
-          return posts;
+    // Обработчики для отправки комментариев к постам
+    document.querySelectorAll('.send-comment-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const postId = this.dataset.postId;
+            const textarea = document.querySelector(`#commentFormContainer-${postId} .comment-textarea`);
+            if (!textarea) return;
 
-        } catch (error) {
-          if (error.name !== 'AbortError') {
-            console.error('Fetch error:', error);
-            throw error;
-          }
-        }
-      }
+            const text = textarea.value.trim();
+            if (!text) return;
+
+            const response = await fetch('/api/add_comment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    post_id: postId,
+                    text: text,
+                    parent_comm_id: null
+                })
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                textarea.value = '';
+                // Перезагружаем страницу
+                location.reload();
+            }
+        });
+    });
+
+    // Обработчики для кнопок ответа на комментарии
+    document.querySelectorAll('.reply-to-comment-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const postId = this.dataset.postId;
+            const commentId = this.dataset.parentId;
+            const formContainer = document.getElementById(`replyFormContainer-${commentId}`);
+
+            if (formContainer) {
+                formContainer.classList.toggle('hidden');
+
+                if (!formContainer.classList.contains('hidden')) {
+                    const textarea = formContainer.querySelector('.reply-textarea');
+                    if (textarea) textarea.focus();
+                }
+            }
+        });
+    });
+
+    // Обработчики для отправки ответов на комментарии
+    document.querySelectorAll('.send-reply-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const postId = this.dataset.postId;
+            const parentId = this.dataset.parentId;
+            const formContainer = document.getElementById(`replyFormContainer-${parentId}`);
+            const textarea = formContainer ? formContainer.querySelector('.reply-textarea') : null;
+
+            if (!textarea) return;
+
+            const text = textarea.value.trim();
+            if (!text) return;
+
+            const response = await fetch('/api/add_comment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    post_id: postId,
+                    text: text,
+                    parent_comm_id: parentId
+                })
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                textarea.value = '';
+                location.reload();
+            }
+        });
+    });
+
+    // Обработчики для удаления комментариев
+    document.querySelectorAll('.delete-comment-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const postId = this.dataset.postId;
+            const commentId = this.dataset.commentId;
+
+            if (!postId || !commentId) return;
+
+            if (!confirm('Вы уверены, что хотите удалить этот комментарий?')) return;
+
+            const response = await fetch('/api/delete_comment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    post_id: postId,
+                    comment_id: commentId
+                })
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                location.reload();
+            }
+        });
+    });
+
+    // Обработчики для удаления постов
+    document.querySelectorAll('.delete_post_btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const postId = this.dataset.postId;
+            if (!postId) return;
+
+            if (!confirm('Вы уверены, что хотите удалить этот пост?')) return;
+
+            const response = await fetch('/api/delete_post', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ post_id: postId })
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                this.closest('.commnposts')?.remove();
+            }
+        });
+    });
+}
+
+// Infinite scroll
+window.addEventListener('scroll', () => {
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
+        loadPosts();
     }
+});
 
-
-
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    loadPosts();
+});
 </script>
+
+<style>
+.loader {
+    text-align: center;
+    padding: 20px;
+    font-size: 24px;
+    color: #fff;
+    background-color: #070F2B;
+    border: 3px solid #fff;
+    border-radius: 10px;
+    margin: 20px auto;
+    width: 200px;
+}
+
+.author_avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    object-fit: cover;
+    margin-right: 10px;
+}
+
+.author_info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.post_actions {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: auto;
+}
+
+.post_actions img {
+    cursor: pointer;
+    width: 45px;
+    height: 60px;
+    transition: 0.3s ease;
+}
+
+.post_actions button {
+    font-family: 'Jost', Arial, sans-serif;
+    border: 3px solid #fff;
+    border-radius: 10px;
+    font-size: 24px;
+    padding: 8px 20px;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.post_actions button:hover {
+    background-color: #fff;
+    color: #070F2B;
+}
+</style>
 
 {% endblock %}

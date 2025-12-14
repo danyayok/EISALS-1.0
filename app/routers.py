@@ -9,7 +9,6 @@ from config import Config
 from werkzeug.utils import secure_filename
 
 SECRET_CODE = Config.SECRET_KEY
-USER_ID = 194679
 
 
 def allowed_file(filename):
@@ -47,7 +46,7 @@ def register_routes(app):
 
         user = get_user(user_id)
         if not user:
-            return "Пользователь не найден", 404
+            return redirect("/api/logout")
 
         posts_user = get_posts_by_author(user_id)
         users = get_all_users()
@@ -115,9 +114,9 @@ def register_routes(app):
         print(posts)
         return render_template('graphics.html',
                                filters=filter_data,
-                               posts=posts,
+                               posts=posts[:10],
                                users=users,
-                               USER_ID=USER_ID)
+                               USER_ID=session.get("user_id", 0))
 
     # ========== СИСТЕМА КОММЕНТАРИЕВ ==========
     @app.route('/api/add_comment', methods=['POST'])
@@ -319,6 +318,69 @@ def register_routes(app):
             return jsonify({"status": "error", "message": f"Server error: {str(e)}"}), 500
 
     # ========== СИСТЕМНЫЕ МАРШРУТЫ ==========
+    @app.route('/api/posts')
+    def api_posts():
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 3))
+
+        posts = get_posts()
+        users = get_all_users()
+
+        region = request.args.get('region')
+        price = request.args.get('price')
+        theme = request.args.get('theme')
+        law = request.args.get('law')
+
+        filtered_posts = posts
+
+        start = (page - 1) * limit
+        end = start + limit
+
+        result = []
+        for post in filtered_posts[start:end]:
+            author_id = post.get("author")
+            author_user = users.get(str(author_id), {})
+
+            def process_comments(comments):
+                processed_comments = []
+                for comment in comments:
+                    comment_user = users.get(str(comment.get("user")), {})
+                    processed_comment = {
+                        **comment,
+                        "user_name": comment_user.get("name", "Аноним"),
+                        "user_img": comment_user.get("img_path", "ava.png")
+                    }
+                    if comment.get("comms"):
+                        processed_comment["comms"] = process_comments(comment["comms"])
+                    processed_comments.append(processed_comment)
+                return processed_comments
+
+            post_data = {
+                **post,
+                "author_name": author_user.get("name", "Неизвестен"),
+                "author_img": author_user.get("img_path", "ava.png"),
+                "author": author_id,
+                "comms": process_comments(post.get("comms", [])) if post.get("comms") else []
+            }
+            result.append(post_data)
+
+        return jsonify({
+            "posts": result,
+            "has_more": end < len(filtered_posts)
+        })
+
+    @app.route('/api/get_users_data')
+    def get_users_data():
+        try:
+            users = get_all_users()
+            return jsonify({
+                "status": "success",
+                "users": users
+            })
+        except Exception as e:
+            print(f"Ошибка получения пользователей: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
     @app.route('/api/upload_avatar', methods=['POST'])
     def upload_avatar():
         try:
@@ -375,6 +437,10 @@ def register_routes(app):
                 raise "Некорректный пароль"
             email = request.form.get('email')
             phone = request.form.get('phone')
+            users = get_all_users()
+            for user in users:
+                if user.get("name") == username or user.get("email") == email or user.get("phone") == phone:
+                    return redirect("/register")
             subscribed = request.form.get('agree_news')
             file = request.files.get('fileInput')
             basedir = os.path.abspath(os.path.dirname(__file__))
@@ -434,7 +500,7 @@ def register_routes(app):
                 session["secret_key"] = SECRET_CODE
                 return redirect("/cab")
             else:
-                return jsonify({"error": "Wrong email or password"}), 403
+                return redirect("/login")
         except Exception as e:
             print(f"Ошибка входа: {e}")
             return jsonify({"status": "error", "message": str(e)}), 500
@@ -493,10 +559,11 @@ def register_routes(app):
     def delete_post():
         try:
             post_id = request.json.get('post_id')
-
+            user_id = session.get('user_id')
             if not post_id:
+                print("no post_id")
                 return jsonify({"status": "error", "message": "No post_id provided"}), 400
-            if session.get('user_id')==get_post(post_id)["author"] and session["secret_key"]==SECRET_CODE:
+            if user_id==get_post(post_id)["author"] and session["secret_key"]==SECRET_CODE:
                 remove_post(post_id)
                 return jsonify({"status": "success"})
             else:
