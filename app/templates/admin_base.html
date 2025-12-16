@@ -1,0 +1,77 @@
+<!-- templates/admin_base.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Админка EISALS{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Сайдбар -->
+        <aside class="admin-sidebar">
+            <div class="admin-logo">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Лого">
+                <h2>Админка EISALS</h2>
+            </div>
+
+            <nav class="admin-nav">
+                <ul>
+                    <li><a href="{{ url_for('admin_dashboard') }}"
+                           {% if request.endpoint == 'admin_dashboard' %}class="active"{% endif %}>
+                        📊 Дашборд
+                    </a></li>
+                    <li><a href="{{ url_for('admin_users') }}"
+                           {% if request.endpoint == 'admin_users' %}class="active"{% endif %}>
+                        👥 Пользователи
+                    </a></li>
+                    <li><a href="{{ url_for('admin_posts') }}"
+                           {% if request.endpoint == 'admin_posts' %}class="active"{% endif %}>
+                        📝 Посты
+                    </a></li>
+                    <li><a href="{{ url_for('admin_comments') }}"
+                           {% if request.endpoint == 'admin_comments' %}class="active"{% endif %}>
+                        💬 Комментарии
+                    </a></li>
+                </ul>
+            </nav>
+
+            <div class="admin-user">
+                <div class="user-info">
+                    <img src="{{ url_for('static', filename='users/avas/' ~ (get_user(session.get('user_id'))['img_path'] if get_user(session.get('user_id')) else 'ava.png')) }}"
+                         alt="Аватар">
+                    <div>
+                        <strong>{{ get_user(session.get('user_id'))['name'] if get_user(session.get('user_id')) else 'Админ' }}</strong>
+                        <span>Администратор</span>
+                    </div>
+                </div>
+                <div class="admin-actions">
+                    <a href="{{ url_for('cab') }}" class="btn-outline">← В кабинет</a>
+                    <a href="{{ url_for('logout') }}" class="btn-logout">Выйти</a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Основной контент -->
+        <main class="admin-main">
+            <header class="admin-header">
+                <h1>{% block page_title %}Админ-панель{% endblock %}</h1>
+                <div class="admin-stats">
+                    <span>👥 {{ total_users if total_users is defined else '?' }} пользователей</span>
+                    <span>📝 {{ total_posts if total_posts is defined else '?' }} постов</span>
+                    <span>💬 {{ total_comments if total_comments is defined else '?' }} комментариев</span>
+                </div>
+            </header>
+
+            <div class="admin-content">
+                {% block admin_content %}
+                {% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

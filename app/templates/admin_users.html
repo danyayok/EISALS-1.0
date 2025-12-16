@@ -1,0 +1,181 @@
+<!-- templates/admin_users.html -->
+{% extends "admin_base.html" %}
+
+{% block title %}Пользователи - Админка EISALS{% endblock %}
+{% block page_title %}Управление пользователями{% endblock %}
+
+{% block admin_content %}
+<div class="admin-table-container">
+    <div class="table-header">
+        <h2>Все пользователи ({{ users|length }})</h2>
+        <div class="table-controls">
+            <input type="text" id="userSearch" placeholder="Поиск пользователей..." class="search-input">
+        </div>
+    </div>
+
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Аватар</th>
+                <th>Имя</th>
+                <th>Email</th>
+                <th>Роль</th>
+                <th>Статистика</th>
+                <th>Статус</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody id="usersTable">
+            {% for user_id, user in users.items() %}
+            <tr data-user-id="{{ user_id }}">
+                <td>{{ user_id }}</td>
+                <td>
+                    <img src="{{ url_for('static', filename='users/avas/' ~ user['img_path']) }}"
+                         alt="Аватар" class="table-avatar">
+                </td>
+                <td>{{ user['name'] }}</td>
+                <td>{{ user['email'] }}</td>
+                <td>
+                    <span class="badge {% if user.get('role') == 'admin' %}badge-admin{% else %}badge-user{% endif %}">
+                        {{ user.get('role', 'user') }}
+                    </span>
+                </td>
+                <td>
+                    <div class="user-stats">
+                        <span title="Посты">📝 {{ user.get('post_count', 0) }}</span>
+                        <span title="Комментарии">💬 {{ user.get('comment_count', 0) }}</span>
+                        <span title="Лайки">⭐ {{ user.get('total_likes', 0) }}</span>
+                    </div>
+                </td>
+                <td>
+                    {% if user.get('is_active', True) %}
+                    <span class="status-active">✅ Активен</span>
+                    {% else %}
+                    <span class="status-blocked">❌ Заблокирован</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        {% if user.get('role') != 'admin' %}
+                            <button class="btn-admin btn-small"
+                                    onclick="makeAdmin('{{ user_id }}')">
+                                Сделать админом
+                            </button>
+                        {% endif %}
+
+                        {% if user.get('is_active', True) %}
+                            <button class="btn-block btn-small"
+                                    onclick="toggleUserStatus('{{ user_id }}')">
+                                Заблокировать
+                            </button>
+                        {% else %}
+                            <button class="btn-unblock btn-small"
+                                    onclick="toggleUserStatus('{{ user_id }}')">
+                                Разблокировать
+                            </button>
+                        {% endif %}
+
+                        <button class="btn-danger btn-small"
+                                onclick="deleteUser('{{ user_id }}')"
+                                {% if user_id == session.get('user_id')|string %}disabled title="Нельзя удалить себя"{% endif %}>
+                            Удалить
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+// Поиск пользователей
+document.getElementById('userSearch').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('#usersTable tr');
+
+    rows.forEach(row => {
+        const name = row.cells[2].textContent.toLowerCase();
+        const email = row.cells[3].textContent.toLowerCase();
+        const shouldShow = name.includes(searchTerm) || email.includes(searchTerm);
+        row.style.display = shouldShow ? '' : 'none';
+    });
+});
+
+async function makeAdmin(userId) {
+    if (!confirm('Сделать этого пользователя администратором?')) return;
+
+    try {
+        const response = await fetch('/api/admin/make_admin', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user_id: userId })
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            alert('Пользователь стал администратором!');
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Произошла ошибка');
+    }
+}
+
+async function toggleUserStatus(userId) {
+    if (!confirm('Изменить статус пользователя?')) return;
+
+    try {
+        const response = await fetch('/api/admin/toggle_user_status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user_id: userId })
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            alert('Статус пользователя изменен!');
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Произошла ошибка');
+    }
+}
+
+async function deleteUser(userId) {
+    if (!confirm('УДАЛИТЬ пользователя и все его посты? Это действие нельзя отменить!')) return;
+
+    try {
+        const response = await fetch('/api/admin/delete_user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user_id: userId })
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            alert('Пользователь удален!');
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Произошла ошибка');
+    }
+}
+</script>
+{% endblock %}

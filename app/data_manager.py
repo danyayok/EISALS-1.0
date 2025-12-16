@@ -487,6 +487,8 @@ def get_all_users():
 
 def add_user(user_data: dict, user_id: int):
     users = load_json(USERS_PATH)
+    if str(user_id) not in users:
+        user_data[str(user_id)]["role"] = "user"
     users[str(user_id)] = user_data[str(user_id)]
     save_json(USERS_PATH, users)
     _load_used_ids()
@@ -536,6 +538,68 @@ def valid_pass(mail, password):
 
     # Если не нашли
     return False, None, None
+
+
+# В data_manager.py добавляем:
+def is_admin(user_id: int) -> bool:
+    """Проверяет, является ли пользователь админом"""
+    users = load_json(USERS_PATH)
+    user = users.get(str(user_id), {})
+    return user.get("role") == "admin"
+
+
+def make_admin(user_id: int) -> bool:
+    """Делает пользователя администратором"""
+    try:
+        users = load_json(USERS_PATH)
+        if str(user_id) in users:
+            users[str(user_id)]["role"] = "admin"
+            save_json(USERS_PATH, users)
+            return True
+        return False
+    except Exception as e:
+        print(f"Ошибка в make_admin: {e}")
+        return False
+
+
+def get_all_users_with_details():
+    """Получает всех пользователей с дополнительной информацией"""
+    users = load_json(USERS_PATH)
+    posts = load_json(POSTS_PATH)
+
+    result = {}
+    for user_id, user_data in users.items():
+        # Считаем количество постов пользователя
+        user_posts = [p for p in posts if str(p.get("author")) == user_id]
+
+        # Считаем количество комментариев
+        comment_count = 0
+        for post in posts:
+            for comment in post.get("comms", []):
+                if str(comment.get("user")) == user_id:
+                    comment_count += 1
+
+                # Рекурсивно считаем вложенные комментарии
+                def count_nested_comments(comments):
+                    count = 0
+                    for comm in comments:
+                        if str(comm.get("user")) == user_id:
+                            count += 1
+                        if comm.get("comms"):
+                            count += count_nested_comments(comm.get("comms", []))
+                    return count
+
+                if comment.get("comms"):
+                    comment_count += count_nested_comments(comment.get("comms", []))
+
+        result[user_id] = {
+            **user_data,
+            "post_count": len(user_posts),
+            "comment_count": comment_count,
+            "total_likes": sum(post.get("rating", 0) for post in user_posts)
+        }
+
+    return result
 
 _load_used_ids()
 print("✅ Система уникальных ID инициализирована")

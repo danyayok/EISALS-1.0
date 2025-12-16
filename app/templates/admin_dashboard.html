@@ -1,0 +1,86 @@
+<!-- templates/admin_dashboard.html -->
+{% extends "admin_base.html" %}
+
+{% block title %}Дашборд - Админка EISALS{% endblock %}
+{% block page_title %}Дашборд{% endblock %}
+
+{% block admin_content %}
+<div class="dashboard-grid">
+    <!-- Карточки статистики -->
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-info">
+            <h3>{{ total_users }}</h3>
+            <p>Пользователей</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">📝</div>
+        <div class="stat-info">
+            <h3>{{ total_posts }}</h3>
+            <p>Постов</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">💬</div>
+        <div class="stat-info">
+            <h3>{{ total_comments }}</h3>
+            <p>Комментариев</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">⭐</div>
+        <div class="stat-info">
+            <h3>{{ (total_posts / total_users * 100)|round(1) if total_users > 0 else 0 }}%</h3>
+            <p>Активность</p>
+        </div>
+    </div>
+
+    <!-- Последние посты -->
+    <div class="dashboard-section">
+        <h2>Последние посты</h2>
+        <div class="recent-list">
+            {% for post in recent_posts %}
+            <div class="recent-item">
+                <img src="{{ url_for('static', filename='users/graphs/' ~ post['img_path']) }}"
+                     alt="График" class="post-thumb">
+                <div class="recent-info">
+                    <h4>{{ post['title'][:50] }}{% if post['title']|length > 50 %}...{% endif %}</h4>
+                    <p>⭐ {{ post['rating'] }} | 💬 {{ post['comms']|length }}</p>
+                    <small>{{ post['created_at'][:10] }}</small>
+                </div>
+                <div class="recent-actions">
+                    <a href="/graphs#post-{{ post['id'] }}" class="btn-small" target="_blank">Просмотр</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Последние пользователи -->
+    <div class="dashboard-section">
+        <h2>Новые пользователи</h2>
+        <div class="recent-list">
+            {% for user_id, user in recent_users.items() %}
+            <div class="recent-item">
+                <img src="{{ url_for('static', filename='users/avas/' ~ user['img_path']) }}"
+                     alt="Аватар" class="user-avatar">
+                <div class="recent-info">
+                    <h4>{{ user['name'] }}</h4>
+                    <p>📧 {{ user['email'] }}</p>
+                    <small>Зарегистрирован: {{ user['created_at'][:10] }}</small>
+                </div>
+                <div class="recent-actions">
+                    <span class="badge {% if user.get('role') == 'admin' %}badge-admin{% else %}badge-user{% endif %}">
+                        {{ user.get('role', 'user') }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

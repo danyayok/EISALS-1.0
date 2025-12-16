@@ -1,0 +1,177 @@
+<!-- templates/admin_comments.html -->
+{% extends "admin_base.html" %}
+
+{% block title %}Комментарии - Админка EISALS{% endblock %}
+{% block page_title %}Управление комментариями{% endblock %}
+
+{% block admin_content %}
+<div class="admin-table-container">
+    <div class="table-header">
+        <h2>Все комментарии ({{ comments|length }})</h2>
+        <div class="table-controls">
+            <input type="text" id="commentSearch" placeholder="Поиск комментариев..." class="search-input">
+            <select id="commentFilter" class="filter-select">
+                <option value="all">Все комментарии</option>
+                <option value="recent">За последние 7 дней</option>
+                <option value="negative">С отрицательным рейтингом</option>
+                <option value="nested">Вложенные комментарии</option>
+            </select>
+        </div>
+    </div>
+
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Автор</th>
+                <th>Текст комментария</th>
+                <th>Пост</th>
+                <th>Рейтинг</th>
+                <th>Дата</th>
+                <th>Уровень</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody id="commentsTable">
+            {% for comment in comments %}
+            <tr data-comment-id="{{ comment['id'] }}"
+                data-post-id="{{ comment['post_id'] }}"
+                data-rating="{{ comment['rating'] }}"
+                data-date="{{ comment.get('created_at', '') }}"
+                data-depth="{{ comment['depth'] }}">
+                <td>{{ comment['id'] }}</td>
+                <td>
+                    <div class="author-cell">
+                        <img src="{{ url_for('static', filename='users/avas/' ~ (users[comment['user']]['img_path'] if comment['user'] in users else 'ava.png')) }}"
+                             alt="Аватар" class="author-avatar">
+                        <div>
+                            <strong>{{ users[comment['user']]['name'] if comment['user'] in users else 'Неизвестный' }}</strong>
+                            <small>ID: {{ comment['user'] }}</small>
+                        </div>
+                    </div>
+                </td>
+                <td class="comment-text-cell">
+                    <div class="comment-text">
+                        {{ comment['text'][:150] }}{% if comment['text']|length > 150 %}...{% endif %}
+                    </div>
+                </td>
+                <td>
+                    <div class="post-cell">
+                        <strong>{{ comment['post_title'][:30] }}{% if comment['post_title']|length > 30 %}...{% endif %}</strong>
+                        <small>ID поста: {{ comment['post_id'] }}</small>
+                    </div>
+                </td>
+                <td>
+                    <span class="rating-badge {% if comment['rating'] > 0 %}rating-positive{% elif comment['rating'] < 0 %}rating-negative{% endif %}">
+                        {{ comment['rating'] }}
+                    </span>
+                </td>
+                <td>{{ comment.get('created_at', '')[:10] if comment.get('created_at') else 'Неизвестно' }}</td>
+                <td>
+                    {% if comment['depth'] > 0 %}
+                    <span class="depth-indicator" style="padding-left: {{ comment['depth'] * 20 }}px">
+                        ↳ Уровень {{ comment['depth'] }}
+                    </span>
+                    {% else %}
+                    <span>Основной</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <a href="/graphs#post-{{ comment['post_id'] }}"
+                           class="btn-small btn-view" target="_blank">
+                            К посту
+                        </a>
+                        <button class="btn-danger btn-small"
+                                onclick="deleteComment('{{ comment['post_id'] }}', '{{ comment['id'] }}')">
+                            Удалить
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+// Поиск комментариев
+document.getElementById('commentSearch').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    filterComments();
+});
+
+// Фильтрация комментариев
+document.getElementById('commentFilter').addEventListener('change', filterComments);
+
+function filterComments() {
+    const searchTerm = document.getElementById('commentSearch').value.toLowerCase();
+    const filterValue = document.getElementById('commentFilter').value;
+    const rows = document.querySelectorAll('#commentsTable tr');
+
+    rows.forEach(row => {
+        const text = row.cells[2].textContent.toLowerCase();
+        const author = row.cells[1].textContent.toLowerCase();
+        const rating = parseInt(row.getAttribute('data-rating'));
+        const dateStr = row.getAttribute('data-date');
+        const depth = parseInt(row.getAttribute('data-depth'));
+
+        let matchesSearch = text.includes(searchTerm) || author.includes(searchTerm);
+        let matchesFilter = true;
+
+        // Применяем фильтры
+        switch(filterValue) {
+            case 'recent':
+                if (dateStr) {
+                    const commentDate = new Date(dateStr);
+                    const weekAgo = new Date();
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    matchesFilter = commentDate >= weekAgo;
+                } else {
+                    matchesFilter = false;
+                }
+                break;
+            case 'negative':
+                matchesFilter = rating < 0;
+                break;
+            case 'nested':
+                matchesFilter = depth > 0;
+                break;
+            case 'all':
+            default:
+                matchesFilter = true;
+        }
+
+        row.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
+    });
+}
+
+async function deleteComment(postId, commentId) {
+    if (!confirm('УДАЛИТЬ этот комментарий? Это действие нельзя отменить!')) return;
+
+    try {
+        const response = await fetch('/api/admin/delete_any_comment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                post_id: postId,
+                comment_id: commentId
+            })
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            alert('Комментарий удален!');
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Произошла ошибка');
+    }
+}
+</script>
+{% endblock %}

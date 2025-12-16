@@ -1,0 +1,634 @@
+
+.admin-container {
+    display: flex;
+    min-height: 100vh;
+    background-color: #070F2B;
+    color: #fff;
+    font-family: 'Jost', Arial, sans-serif;
+}
+
+/* Сайдбар */
+.admin-sidebar {
+    width: 280px;
+    background-color: #1B1A55;
+    border-right: 3px solid #535C91;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    position: fixed;
+    height: 100vh;
+    left: 0;
+    top: 0;
+}
+
+.admin-logo {
+    text-align: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #535C91;
+}
+
+.admin-logo img {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 10px;
+}
+
+.admin-logo h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #fff;
+}
+
+.admin-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.admin-nav li {
+    margin-bottom: 10px;
+}
+
+.admin-nav a {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    font-size: 18px;
+}
+
+.admin-nav a:hover {
+    background-color: #535C91;
+    transform: translateX(5px);
+}
+
+.admin-nav a.active {
+    background-color: #9290C3;
+    font-weight: bold;
+    border-left: 4px solid #fff;
+}
+
+.admin-nav a::before {
+    margin-right: 15px;
+    font-size: 20px;
+}
+
+.admin-user {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 2px solid #535C91;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.user-info img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+}
+
+.user-info div {
+    flex: 1;
+}
+
+.user-info strong {
+    display: block;
+    font-size: 16px;
+}
+
+.user-info span {
+    font-size: 14px;
+    color: #9290C3;
+}
+
+.admin-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.btn-outline, .btn-logout {
+    padding: 12px;
+    text-align: center;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-outline {
+    border: 2px solid #9290C3;
+    color: #9290C3;
+    background: transparent;
+}
+
+.btn-outline:hover {
+    background-color: #9290C3;
+    color: #1B1A55;
+}
+
+.btn-logout {
+    background-color: #ff4757;
+    color: white;
+    border: none;
+}
+
+.btn-logout:hover {
+    background-color: #ff3742;
+}
+
+/* Основной контент */
+.admin-main {
+    flex: 1;
+    margin-left: 280px;
+    padding: 20px;
+}
+
+.admin-header {
+    background-color: #1B1A55;
+    padding: 25px 30px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    border: 3px solid #535C91;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-header h1 {
+    margin: 0;
+    font-size: 32px;
+    color: #fff;
+}
+
+.admin-stats {
+    display: flex;
+    gap: 25px;
+    font-size: 18px;
+}
+
+.admin-stats span {
+    background-color: #535C91;
+    padding: 10px 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Дашборд */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 25px;
+    margin-bottom: 40px;
+}
+
+.stat-card {
+    background-color: #1B1A55;
+    padding: 25px;
+    border-radius: 15px;
+    border: 3px solid #535C91;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    border-color: #9290C3;
+}
+
+.stat-icon {
+    font-size: 40px;
+    background-color: #535C91;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-info h3 {
+    margin: 0;
+    font-size: 36px;
+    color: #fff;
+}
+
+.stat-info p {
+    margin: 5px 0 0 0;
+    color: #9290C3;
+    font-size: 16px;
+}
+
+.dashboard-section {
+    background-color: #1B1A55;
+    padding: 25px;
+    border-radius: 15px;
+    border: 3px solid #535C91;
+    margin-bottom: 30px;
+}
+
+.dashboard-section h2 {
+    margin: 0 0 20px 0;
+    font-size: 24px;
+    color: #fff;
+}
+
+.recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.recent-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background-color: #070F2B;
+    border-radius: 10px;
+    border: 2px solid #535C91;
+    gap: 15px;
+}
+
+.post-thumb {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid #fff;
+}
+
+.user-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    object-fit: cover;
+}
+
+.recent-info {
+    flex: 1;
+}
+
+.recent-info h4 {
+    margin: 0 0 5px 0;
+    color: #fff;
+    font-size: 18px;
+}
+
+.recent-info p {
+    margin: 0 0 5px 0;
+    color: #9290C3;
+    font-size: 14px;
+}
+
+.recent-info small {
+    color: #9290C3;
+    font-size: 12px;
+}
+
+.recent-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-small {
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    border: 2px solid;
+    transition: all 0.3s ease;
+}
+
+.btn-view {
+    background-color: #535C91;
+    color: white;
+    border-color: #535C91;
+}
+
+.btn-view:hover {
+    background-color: #9290C3;
+    border-color: #9290C3;
+}
+
+/* Таблицы */
+.admin-table-container {
+    background-color: #1B1A55;
+    padding: 25px;
+    border-radius: 15px;
+    border: 3px solid #535C91;
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.table-header h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #fff;
+}
+
+.table-controls {
+    display: flex;
+    gap: 15px;
+}
+
+.search-input, .filter-select {
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: 2px solid #535C91;
+    background-color: #070F2B;
+    color: #fff;
+    font-family: 'Jost', Arial, sans-serif;
+    font-size: 16px;
+    min-width: 250px;
+}
+
+.search-input:focus, .filter-select:focus {
+    outline: none;
+    border-color: #9290C3;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #fff;
+}
+
+.admin-table th {
+    background-color: #535C91;
+    padding: 15px;
+    text-align: left;
+    font-weight: bold;
+    border-bottom: 3px solid #9290C3;
+}
+
+.admin-table td {
+    padding: 15px;
+    border-bottom: 2px solid #535C91;
+    vertical-align: middle;
+}
+
+.admin-table tr:hover {
+    background-color: rgba(83, 92, 145, 0.2);
+}
+
+.table-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    object-fit: cover;
+}
+
+.table-image {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid #fff;
+}
+
+.author-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.author-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    object-fit: cover;
+}
+
+.post-desc {
+    margin: 5px 0 0 0;
+    color: #9290C3;
+    font-size: 14px;
+}
+
+.user-stats {
+    display: flex;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.user-stats span {
+    background-color: #535C91;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Бейджи и статусы */
+.badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.badge-admin {
+    background-color: #ff9f43;
+    color: #fff;
+}
+
+.badge-user {
+    background-color: #535C91;
+    color: #fff;
+}
+
+.status-active {
+    color: #2ed573;
+    font-weight: bold;
+}
+
+.status-blocked {
+    color: #ff4757;
+    font-weight: bold;
+}
+
+.rating-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-weight: bold;
+    display: inline-block;
+    min-width: 40px;
+    text-align: center;
+}
+
+.rating-positive {
+    background-color: #2ed573;
+    color: #fff;
+}
+
+.rating-negative {
+    background-color: #ff4757;
+    color: #fff;
+}
+
+.rating-neutral {
+    background-color: #535C91;
+    color: #fff;
+}
+
+/* Кнопки действий */
+.action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.btn-admin {
+    background-color: #ff9f43;
+    color: white;
+    border-color: #ff9f43;
+}
+
+.btn-admin:hover {
+    background-color: #ff8c29;
+    border-color: #ff8c29;
+}
+
+.btn-block {
+    background-color: #ff6b81;
+    color: white;
+    border-color: #ff6b81;
+}
+
+.btn-block:hover {
+    background-color: #ff4757;
+    border-color: #ff4757;
+}
+
+.btn-unblock {
+    background-color: #2ed573;
+    color: white;
+    border-color: #2ed573;
+}
+
+.btn-unblock:hover {
+    background-color: #1dd1a1;
+    border-color: #1dd1a1;
+}
+
+.btn-danger {
+    background-color: #ff4757;
+    color: white;
+    border-color: #ff4757;
+}
+
+.btn-danger:hover {
+    background-color: #ff3742;
+    border-color: #ff3742;
+}
+
+.btn-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Ячейка с комментарием */
+.comment-text-cell {
+    max-width: 300px;
+}
+
+.comment-text {
+    word-wrap: break-word;
+    line-height: 1.5;
+}
+
+/* Индикатор вложенности */
+.depth-indicator {
+    color: #9290C3;
+    font-style: italic;
+}
+
+/* Адаптивность */
+@media (max-width: 1200px) {
+    .admin-sidebar {
+        width: 240px;
+    }
+    .admin-main {
+        margin-left: 240px;
+    }
+}
+
+@media (max-width: 992px) {
+    .admin-container {
+        flex-direction: column;
+    }
+
+    .admin-sidebar {
+        position: static;
+        width: 100%;
+        height: auto;
+        margin-bottom: 20px;
+    }
+
+    .admin-main {
+        margin-left: 0;
+    }
+
+    .admin-nav a {
+        font-size: 16px;
+        padding: 12px 15px;
+    }
+
+    .table-controls {
+        flex-direction: column;
+    }
+
+    .search-input, .filter-select {
+        min-width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+
+    .admin-stats {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .btn-small {
+        width: 100%;
+        text-align: center;
+    }
+
+    .admin-table {
+        display: block;
+        overflow-x: auto;
+    }
+}

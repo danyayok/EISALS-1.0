@@ -1,15 +1,31 @@
-from flask import render_template, request, redirect, url_for, jsonify, session
+from flask import render_template, request, redirect, url_for, jsonify, session, abort
 from datetime import datetime
 import uuid
 import os
 from app.data_manager import get_user, get_posts_by_author, add_post, get_all_users, remove_post, add_user, load_json, \
     save_json, USERS_PATH, POSTS_PATH, add_comment, delete_comment, can_delete_comment, get_posts, generate_id, \
-    react_to_post, react_to_comment, get_user_reaction_to_post, get_user_reaction_to_comment, get_post, valid_pass
+    react_to_post, react_to_comment, get_user_reaction_to_post, get_user_reaction_to_comment, get_post, valid_pass, \
+    get_all_users_with_details, make_admin, is_admin
 from config import Config
 from werkzeug.utils import secure_filename
 
 SECRET_CODE = Config.SECRET_KEY
+from functools import wraps
 
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user_id = session.get("user_id")
+
+        if not user_id:
+            return abort(404)
+
+        if not (session.get("secret_key") == SECRET_CODE and is_admin(user_id)):
+            return abort(404)
+
+        return f(*args, **kwargs)
+
+    return decorated_function
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in Config.ALLOWED_EXTENSIONS
@@ -24,9 +40,9 @@ def register_routes(app):
     @app.route('/admin')
     def admin():
         # просто шаблон для админки
-        user_id = session["user_id"]
+        user_id = session.get("user_id", None)
         if not (user_id and session.get("secret_key") == SECRET_CODE):
-            return jsonify({"error": "Not authorized"}), 403
+            return jsonify({"error": "Not authorized"}), 404
         user = get_user(user_id)
         if not user:
             # будем возвращать 404 типо умные хихих страницы то "нет", а на деле он не админ
@@ -467,6 +483,8 @@ def register_routes(app):
                     "subscribed": subscribed,
                     "rating": 0,
                     "img_path": img_path,
+                    "role": "user",
+                    "is_active": True,
                     "reacted": {
                         "up": [],
                         "down": [],
@@ -570,4 +588,188 @@ def register_routes(app):
                 return jsonify({"error": "Not Authorized!"}), 403
         except Exception as e:
             print(f"Ошибка при удалении поста: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+
+    # ========== АДМИНСКИЕ ЭНДПОИНТЫ ==========
+
+    @app.route('/admin/dashboard')
+    @admin_required
+    def admin_dashboard():
+        """Главная страница админки"""
+        # Получаем статистику
+        users = get_all_users_with_details()
+        posts = get_posts()
+        total_users = len(users)
+        total_posts = len(posts)
+        total_comments = sum(len(post.get("comms", [])) for post in posts)
+
+        # Последние 5 действий
+        recent_posts = sorted(posts, key=lambda x: x.get("created_at", ""), reverse=True)[:5]
+        recent_users = dict(sorted(users.items(),
+                                   key=lambda x: x[1].get("created_at", ""),
+                                   reverse=True)[:5])
+
+        return render_template('admin_dashboard.html',
+                               total_users=total_users,
+                               total_posts=total_posts,
+                               total_comments=total_comments,
+                               recent_posts=recent_posts,
+                               recent_users=recent_users,
+                               users=users,
+                               get_user=get_user)
+
+
+    @app.route('/admin/users')
+    @admin_required
+    def admin_users():
+        """Управление пользователями"""
+        users = get_all_users_with_details()
+        return render_template('admin_users.html', users=users, get_user=get_user)
+
+    @app.route('/admin/posts')
+    @admin_required
+    def admin_posts():
+        """Управление постами"""
+        posts = get_posts()
+        users = get_all_users()
+
+        # Преобразуем ключи users в строки для совместимости
+        users_str_keys = {str(k): v for k, v in users.items()}
+
+        return render_template('admin_posts.html',
+                               posts=posts,
+                               users=users_str_keys,
+                               get_user=get_user)
+
+
+    @app.route('/admin/comments')
+    @admin_required
+    def admin_comments():
+        """Управление комментариями"""
+        posts = get_posts()
+        users = get_all_users()
+
+        # Собираем все комментарии
+        all_comments = []
+        for post in posts:
+            def extract_comments(comments, post_id, depth=0):
+                for comment in comments:
+                    all_comments.append({
+                        **comment,
+                        "post_id": post_id,
+                        "post_title": next((p["title"] for p in posts if p["id"] == post_id), ""),
+                        "depth": depth
+                    })
+                    if comment.get("comms"):
+                        extract_comments(comment["comms"], post_id, depth + 1)
+
+            if post.get("comms"):
+                extract_comments(post["comms"], post["id"])
+
+        return render_template('admin_comments.html',
+                               comments=all_comments,
+                               users=users,
+                               posts=posts,
+                               get_user=get_user)
+
+
+    # ========== АДМИНСКИЕ API ЭНДПОИНТЫ ==========
+
+    @app.route('/api/admin/delete_user', methods=['POST'])
+    @admin_required
+    def admin_delete_user():
+        try:
+            data = request.get_json()
+            target_user_id = data.get("user_id")
+            if not target_user_id:
+                return jsonify({"status": "error", "message": "User ID required"}), 400
+            if str(target_user_id) == str(session.get("user_id")):
+                return jsonify({"status": "error", "message": "Cannot delete yourself"}), 400
+            users = load_json(USERS_PATH)
+            if str(target_user_id) not in users:
+                return jsonify({"status": "error", "message": "User not found"}), 404
+            del users[str(target_user_id)]
+            save_json(USERS_PATH, users)
+            posts = get_posts()
+            posts = [p for p in posts if str(p.get("author")) != str(target_user_id)]
+            save_json(POSTS_PATH, posts)
+            return jsonify({"status": "success", "message": "User deleted"})
+        except Exception as e:
+            print(f"Ошибка в admin_delete_user: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+
+    @app.route('/api/admin/toggle_user_status', methods=['POST'])
+    @admin_required
+    def admin_toggle_user_status():
+        try:
+            data = request.get_json()
+            target_user_id = data.get("user_id")
+            if not target_user_id:
+                return jsonify({"status": "error", "message": "User ID required"}), 400
+            if str(target_user_id) == str(session.get("user_id")):
+                return jsonify({"status": "error", "message": "Cannot block yourself"}), 400
+            users = load_json(USERS_PATH)
+            if str(target_user_id) not in users:
+                return jsonify({"status": "error", "message": "User not found"}), 404
+            current_status = users[str(target_user_id)].get("is_active", True)
+            users[str(target_user_id)]["is_active"] = not current_status
+            save_json(USERS_PATH, users)
+            action = "unblocked" if current_status else "blocked"
+            return jsonify({"status": "success", "message": f"User {action}", "is_active": not current_status})
+        except Exception as e:
+            print(f"Ошибка в admin_toggle_user_status: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+
+    @app.route('/api/admin/make_admin', methods=['POST'])
+    @admin_required
+    def admin_make_admin():
+        try:
+            data = request.get_json()
+            target_user_id = data.get("user_id")
+            if not target_user_id:
+                return jsonify({"status": "error", "message": "User ID required"}), 400
+            if str(target_user_id) == str(session.get("user_id")):
+                return jsonify({"status": "error", "message": "Cannot change your own role"}), 400
+            if make_admin(target_user_id):
+                return jsonify({"status": "success", "message": "User promoted to admin"})
+            else:
+                return jsonify({"status": "error", "message": "User not found"}), 404
+        except Exception as e:
+            print(f"Ошибка в admin_make_admin: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+
+    @app.route('/api/admin/delete_any_post', methods=['POST'])
+    @admin_required
+    def admin_delete_any_post():
+        try:
+            data = request.get_json()
+            post_id = data.get("post_id")
+            if not post_id:
+                return jsonify({"status": "error", "message": "Post ID required"}), 400
+            remove_post(post_id)
+            return jsonify({"status": "success", "message": "Post deleted"})
+        except Exception as e:
+            print(f"Ошибка в admin_delete_any_post: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+
+    @app.route('/api/admin/delete_any_comment', methods=['POST'])
+    @admin_required
+    def admin_delete_any_comment():
+        try:
+            data = request.get_json()
+            post_id = data.get("post_id")
+            comment_id = data.get("comment_id")
+            if not all([post_id, comment_id]):
+                return jsonify({"status": "error", "message": "Post ID and Comment ID required"}), 400
+            if delete_comment(post_id, comment_id, session.get("user_id")):
+                return jsonify({"status": "success", "message": "Comment deleted"})
+            else:
+                return jsonify({"status": "error", "message": "Comment not found"}), 404
+        except Exception as e:
+            print(f"Ошибка в admin_delete_any_comment: {e}")
             return jsonify({"status": "error", "message": str(e)}), 500
